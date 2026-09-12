@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "d10bc907-2177-4650-9bb3-83cb0c60196c",
-  "project_id": "ded2f0c6-ab83-4553-b9f7-f3e478c368c6",
-  "url": "/__l5e/assets-v1/d10bc907-2177-4650-9bb3-83cb0c60196c/wendys-billboard.jpeg",
-  "r2_key": "a/v1/ded2f0c6-ab83-4553-b9f7-f3e478c368c6/d10bc907-2177-4650-9bb3-83cb0c60196c/wendys-billboard.jpeg",
-  "original_filename": "wendys-billboard.jpeg",
-  "size": 197720,
   "content_type": "image/jpeg",
-  "created_at": "2026-09-08T18:27:11Z"
+  "created_at": "2026-09-08T18:27:11Z",
+  "original_filename": "wendys-billboard.jpeg",
+  "project_id": "79627fc3-4a4b-4af5-8e9e-41c81dafdd9d",
+  "r2_key": "a/v1/79627fc3-4a4b-4af5-8e9e-41c81dafdd9d/d10bc907-2177-4650-9bb3-83cb0c60196c/wendys-billboard.jpeg",
+  "size": 197720,
+  "url": "/__l5e/assets-v1/d10bc907-2177-4650-9bb3-83cb0c60196c/wendys-billboard.jpeg",
+  "version": 1
 }

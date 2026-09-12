@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "1ff870a8-e858-4e2d-aa7b-236d25187c2f",
-  "project_id": "ded2f0c6-ab83-4553-b9f7-f3e478c368c6",
-  "url": "/__l5e/assets-v1/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg",
-  "r2_key": "a/v1/ded2f0c6-ab83-4553-b9f7-f3e478c368c6/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg",
-  "original_filename": "cake-6.jpg",
-  "size": 106442,
   "content_type": "image/jpeg",
-  "created_at": "2026-08-22T19:45:28Z"
+  "created_at": "2026-08-22T19:45:28Z",
+  "original_filename": "cake-6.jpg",
+  "project_id": "79627fc3-4a4b-4af5-8e9e-41c81dafdd9d",
+  "r2_key": "a/v1/79627fc3-4a4b-4af5-8e9e-41c81dafdd9d/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg",
+  "size": 106442,
+  "url": "/__l5e/assets-v1/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg",
+  "version": 1
 }
