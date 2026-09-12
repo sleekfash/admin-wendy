@@ -288,7 +288,7 @@ export const adminSaveProduct = createServerFn({ method: "POST" })
       short: data.short,
       description: data.description,
       payment_rule: data.payment_rule,
-      pricing_mode: data.payment_rule === "deposit" ? "deposit" : "fixed",
+      pricing_mode: (data.payment_rule === "deposit" ? "deposit" : "fixed") as "fixed" | "deposit",
       price_cents: data.price_cents,
       deposit_cents: data.payment_rule === "deposit" ? data.deposit_cents : null,
       price_band: null,
