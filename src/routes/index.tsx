@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck, MapPin, Clock, Sparkles } from "lucide-react";
 import heroArtwork from "@/assets/brand/wendys-billboard.jpeg.asset.json";
+import reviewArtwork from "@/assets/customer-review.png.asset.json";
 import { BUSINESS } from "@/data/catalog";
 import {
   CtaBand,
@@ -175,6 +176,50 @@ function Index() {
             </li>
           ))}
         </ol>
+      </Section>
+
+      <Section>
+        <div className="grid items-center gap-10 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <SmartImage
+              src={reviewArtwork.url}
+              alt="Customer review messages praising Wendy's Bakehouse vanilla and red velvet cake"
+              ratio="aspect-square"
+            />
+          </div>
+          <div className="md:col-span-7">
+            <Eyebrow>Real feedback, real love</Eyebrow>
+            <h2 className="mt-4 text-3xl md:text-4xl">What customers say.</h2>
+            <figure className="mt-8 border-l-2 border-gold pl-5">
+              <blockquote className="text-lg">
+                &ldquo;I just tasted the cake and it tastes so rich. Both vanilla and red velvet.
+                Just the right amount of sugar. Not sugary!! Thank you so much.&rdquo;
+              </blockquote>
+              <figcaption className="mt-3 text-sm text-muted-foreground">
+                Birthday cake customer, Etobicoke
+              </figcaption>
+            </figure>
+            <figure className="mt-6 border-l-2 border-gold/50 pl-5">
+              <blockquote className="text-lg">
+                &ldquo;Thank you, I just got the cake — absolutely loved it!&rdquo;
+              </blockquote>
+              <figcaption className="mt-3 text-sm text-muted-foreground">
+                Celebration cake customer, Toronto
+              </figcaption>
+            </figure>
+            <ul className="mt-8 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+              <li className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" /> Rich flavour
+              </li>
+              <li className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Just-right sweetness
+              </li>
+              <li className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-gold" aria-hidden="true" /> Ready on your date
+              </li>
+            </ul>
+          </div>
+        </div>
       </Section>
 
       <Section tone="sand">
