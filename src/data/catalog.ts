@@ -239,7 +239,8 @@ export const PRICE_BANDS = [
   { item: "Cupcakes, 12 regular", price: "$65" },
   { item: "Cupcakes, 12 themed", price: "$75" },
   { item: "Gift boxes", price: "from $30+" },
-  { item: "Loaves, meat pies, trays", price: "quoted on enquiry" },
+  { item: "Cake loaves", price: "$28 each" },
+  { item: "Meat or chicken pies, pack of 12", price: "$28" },
 ];
 
 export const FAQS = [
@@ -253,15 +254,15 @@ export const FAQS = [
   },
   {
     q: "Do you deliver?",
-    a: "Delivery is available across west Toronto for an additional fee, quoted by postcode when you order.",
+    a: "Yes, across west Toronto and nearby. Enter your postal code at checkout and the delivery fee for your area is added to your total before you pay.",
   },
   {
     q: "How do I pay and hold my date?",
-    a: "Once I confirm the quote and the date, payment secures your slot. Dates are held in the order they are paid for, and I only take what I can bake.",
+    a: "You pay at checkout — in full for everyday items, or a deposit for tiered and themed cakes with the balance due before collection. Your date is held once payment is confirmed.",
   },
   {
-    q: "Why are prices shown as bands?",
-    a: "Because size, finish and detail change the work. The band tells you the honest range up front; the quote you get back is a firm number.",
+    q: "How are cake prices worked out?",
+    a: "Every cake shows a starting price, and the size and finish you choose add a set amount on top. The total you see at checkout is the price you pay.",
   },
   {
     q: "Allergies and dietary needs?",

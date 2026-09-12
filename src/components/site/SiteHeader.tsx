@@ -43,7 +43,7 @@ export function SiteHeader() {
             ))}
             <CartDrawer />
             <Link
-              to="/order"
+              to="/menu"
               className="rounded-sm bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Start an order
@@ -93,7 +93,7 @@ export function SiteHeader() {
           </nav>
           <div className="mt-auto flex flex-col gap-3 pb-4">
             <Link
-              to="/order"
+              to="/menu"
               onClick={() => setOpen(false)}
               className="rounded-sm bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground"
             >

@@ -70,7 +70,7 @@ function Index() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/order"
+                to="/menu"
                 className="rounded-sm bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 Start an order

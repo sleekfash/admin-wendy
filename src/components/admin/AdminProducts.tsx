@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Search } from "lucide-react";
 import { adminDeleteProduct, adminListProducts, adminSaveProduct } from "@/lib/admin.functions";
 import { formatMoney, imageSrc } from "@/lib/shop";
+import { AdminProductOptions } from "@/components/admin/AdminProductOptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ import {
 type Catalog = Awaited<ReturnType<typeof adminListProducts>>;
 type ProductRow = Catalog["products"][number];
 type Status = "available" | "unavailable" | "archived";
-type PricingMode = "fixed" | "deposit" | "quote";
+type PaymentRule = "full" | "deposit";
 
 type Draft = {
   id?: string;
@@ -32,10 +33,11 @@ type Draft = {
   category_id: string | null;
   short: string;
   description: string;
-  pricing_mode: PricingMode;
+  payment_rule: PaymentRule;
   price: string;
   deposit: string;
-  price_band: string;
+  pack_size: string;
+  pack_unit: string;
   price_note: string;
   lead_time: string;
   serves: string;
@@ -54,10 +56,11 @@ function toDraft(p?: ProductRow): Draft {
     category_id: p?.category_id ?? null,
     short: p?.short ?? "",
     description: p?.description ?? "",
-    pricing_mode: (p?.pricing_mode as PricingMode) ?? "fixed",
+    payment_rule: (p?.payment_rule as PaymentRule) ?? "full",
     price: p?.price_cents != null ? (p.price_cents / 100).toString() : "",
     deposit: p?.deposit_cents != null ? (p.deposit_cents / 100).toString() : "",
-    price_band: p?.price_band ?? "",
+    pack_size: p?.pack_size != null ? String(p.pack_size) : "",
+    pack_unit: p?.pack_unit ?? "",
     price_note: p?.price_note ?? "",
     lead_time: p?.lead_time ?? "",
     serves: p?.serves ?? "",
@@ -111,14 +114,14 @@ export function AdminProducts() {
           category_id: d.category_id,
           short: d.short.trim(),
           description: d.description.trim(),
-          pricing_mode: d.pricing_mode,
+          payment_rule: d.payment_rule,
           price_cents: toCents(d.price),
           deposit_cents: toCents(d.deposit),
-          price_band: d.price_band.trim() || null,
+          pack_size: d.pack_size.trim() ? Number(d.pack_size) : null,
+          pack_unit: d.pack_unit.trim() || null,
           price_note: d.price_note.trim() || null,
           lead_time: d.lead_time.trim(),
           serves: d.serves.trim() || null,
-          options: [],
           includes: d.includes
             .split("\n")
             .map((l) => l.trim())
@@ -214,11 +217,11 @@ export function AdminProducts() {
                 <Badge variant={STATUS_TONE[(p.status as Status) ?? "available"]}>{p.status}</Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {p.pricing_mode === "quote"
-                  ? "Quoted"
-                  : p.pricing_mode === "deposit"
-                    ? `${formatMoney(p.deposit_cents ?? 0)} deposit`
-                    : formatMoney(p.price_cents ?? 0)}
+                {formatMoney(p.price_cents ?? 0)}
+                {p.payment_rule === "deposit"
+                  ? ` · ${formatMoney(p.deposit_cents ?? 0)} deposit`
+                  : ""}
+                {p.pack_size ? ` · ${p.pack_size} ${p.pack_unit ?? "pieces"} per pack` : ""}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setDraft(toDraft(p))}>
@@ -320,18 +323,17 @@ export function AdminProducts() {
                     onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                   />
                 </Field>
-                <Field label="Pricing">
+                <Field label="Payment">
                   <Select
-                    value={draft.pricing_mode}
-                    onValueChange={(v) => setDraft({ ...draft, pricing_mode: v as PricingMode })}
+                    value={draft.payment_rule}
+                    onValueChange={(v) => setDraft({ ...draft, payment_rule: v as PaymentRule })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fixed">Fixed price</SelectItem>
-                      <SelectItem value="deposit">Deposit to book</SelectItem>
-                      <SelectItem value="quote">Quote only</SelectItem>
+                      <SelectItem value="full">Pay in full at checkout</SelectItem>
+                      <SelectItem value="deposit">Deposit now, balance later</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -339,7 +341,7 @@ export function AdminProducts() {
                   <Field label="Price (CAD)">
                     <Input
                       inputMode="decimal"
-                      disabled={draft.pricing_mode === "quote"}
+                      required
                       value={draft.price}
                       onChange={(e) => setDraft({ ...draft, price: e.target.value })}
                     />
@@ -347,19 +349,29 @@ export function AdminProducts() {
                   <Field label="Deposit (CAD)">
                     <Input
                       inputMode="decimal"
-                      disabled={draft.pricing_mode !== "deposit"}
+                      disabled={draft.payment_rule !== "deposit"}
                       value={draft.deposit}
                       onChange={(e) => setDraft({ ...draft, deposit: e.target.value })}
                     />
                   </Field>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Price band">
+                  <Field label="Pieces per pack (optional)">
                     <Input
-                      value={draft.price_band}
-                      onChange={(e) => setDraft({ ...draft, price_band: e.target.value })}
+                      inputMode="numeric"
+                      placeholder="12"
+                      value={draft.pack_size}
+                      onChange={(e) => setDraft({ ...draft, pack_size: e.target.value })}
                     />
                   </Field>
+                  <Field label="Pack contains (e.g. pies)">
+                    <Input
+                      value={draft.pack_unit}
+                      onChange={(e) => setDraft({ ...draft, pack_unit: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <Field label="Price note">
                     <Input
                       value={draft.price_note}
@@ -420,6 +432,18 @@ export function AdminProducts() {
                     </Select>
                   </Field>
                 </div>
+                {draft.id ? (
+                  <div className="rounded-[0.75rem] border border-border bg-muted/30 p-3">
+                    <h4 className="font-display text-lg">Customer choices</h4>
+                    <div className="mt-2">
+                      <AdminProductOptions productId={draft.id} />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Save the product first, then add sizes, flavours and other choices.
+                  </p>
+                )}
                 <Button type="submit" disabled={save.isPending} className="w-full">
                   {save.isPending ? "Saving…" : "Save product"}
                 </Button>
