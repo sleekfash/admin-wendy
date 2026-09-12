@@ -266,7 +266,10 @@ export function AdminProductOptions({ productId }: { productId: string }) {
                 variant="outline"
                 onClick={() => {
                   const key = slugify(draft.label);
-                  if (!key) return toast.error("Give the choice a name first.");
+                  if (!key) {
+                    toast.error("Give the choice a name first.");
+                    return;
+                  }
                   choiceMutation.mutate({
                     group_id: g.id,
                     key,
@@ -300,7 +303,10 @@ export function AdminProductOptions({ productId }: { productId: string }) {
           variant="outline"
           onClick={() => {
             const key = slugify(newGroup);
-            if (!key) return toast.error("Give the group a name first.");
+            if (!key) {
+              toast.error("Give the group a name first.");
+              return;
+            }
             groupMutation.mutate({
               key,
               label: newGroup.trim(),
