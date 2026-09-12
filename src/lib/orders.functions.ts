@@ -136,6 +136,17 @@ export const placeOrder = createServerFn({ method: "POST" })
 
     const isTransfer = data.checkout_method === "bank_transfer";
 
+    // The slip is decoded and size-checked before anything is written, so a
+    // rejected file never leaves a half-finished order behind.
+    let slipBytes: Uint8Array | null = null;
+    if (data.slip) {
+      slipBytes = decodeBase64(data.slip.data_base64);
+      if (slipBytes.byteLength > MAX_SLIP_BYTES) {
+        throw new Error("That payment slip is larger than 5MB. Please upload a smaller file.");
+      }
+    }
+
+
     // Order + items are written in one database transaction.
     const { data: created, error: orderError } = await supabaseAdmin.rpc("create_order", {
       _order: {
