@@ -41,7 +41,7 @@ function MenuPage() {
       <PageHeader
         eyebrow="Menu"
         title="The whole menu, with the prices written down."
-        lead="Custom celebration cakes and themed cakes. Every price includes the finish shown — tell me the size, flavour and date and the quote comes back firm."
+        lead="Custom celebration cakes, cake loaves, small chops and party drinks. Every price is written down — choose the size and finish and your total is worked out for you."
       />
 
       <Section>
@@ -87,7 +87,7 @@ function MenuPage() {
         )}
 
         <p className="mt-10 max-w-[70ch] text-sm text-muted-foreground">
-          Prices shown in CAD. Larger tiers, party trays and bespoke sculpted work are quoted on
+          Prices shown in CAD. Larger tiers and bespoke sculpted work can be arranged on
           enquiry — ask and you will get a number the same day, not a runaround.
         </p>
       </Section>

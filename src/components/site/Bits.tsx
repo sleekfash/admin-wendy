@@ -109,13 +109,13 @@ export function CtaBand() {
         <div>
           <h2 className="text-3xl md:text-4xl">Tell me what you&rsquo;re celebrating.</h2>
           <p className="mt-3 max-w-[52ch] text-primary-foreground/80">
-            Four short steps, a firm quote back within 24 hours, and a pickup slot in Etobicoke.
-            No guessing at prices.
+            Every price is written down, your total is worked out at checkout, and pickup is in
+            Etobicoke. No guessing at prices.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-3">
           <Link
-            to="/order"
+            to="/menu"
             className="rounded-sm bg-background px-5 py-3 text-sm font-semibold text-foreground"
           >
             Start an order

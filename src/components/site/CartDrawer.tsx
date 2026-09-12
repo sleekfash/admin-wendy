@@ -15,7 +15,7 @@ import { formatMoney, imageSrc } from "@/lib/shop";
 
 export function CartDrawer({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
-  const { items, count, remove, setQuantity, dueNowCents, hasQuoteItems } = useCart();
+  const { items, count, remove, setQuantity, dueNowCents } = useCart();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -103,7 +103,7 @@ export function CartDrawer({ className = "" }: { className?: string }) {
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
                       <span className="ml-auto font-display text-base text-gold">
-                        {lineDueCents(item) > 0 ? formatMoney(lineDueCents(item)) : "Quoted"}
+                        {formatMoney(lineDueCents(item))}
                       </span>
                     </div>
                   </div>
@@ -119,11 +119,6 @@ export function CartDrawer({ className = "" }: { className?: string }) {
               <span className="text-sm text-muted-foreground">Subtotal</span>
               <span className="font-display text-2xl">{formatMoney(dueNowCents)}</span>
             </div>
-            {hasQuoteItems && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Some items are quoted — a firm price follows within 24 hours.
-              </p>
-            )}
             <Button asChild className="mt-4 w-full">
               <Link to="/checkout" onClick={() => setOpen(false)}>
                 Checkout

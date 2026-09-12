@@ -132,7 +132,7 @@ function ContactPage() {
 
             <p className="mt-8 text-sm text-muted-foreground">
               Ready with the details?{" "}
-              <Link to="/order" className="font-semibold underline decoration-gold decoration-2 underline-offset-4">
+              <Link to="/menu" className="font-semibold underline decoration-gold decoration-2 underline-offset-4">
                 Start an order
               </Link>{" "}
               and I&rsquo;ll come back with a firm quote.

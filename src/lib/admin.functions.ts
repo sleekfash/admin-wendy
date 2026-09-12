@@ -379,25 +379,242 @@ export const adminGetSettings = createServerFn({ method: "GET" })
     return data;
   });
 
+const distanceBandSchema = z.object({
+  max_km: z.number().min(0).max(500),
+  fee_cents: z.number().int().min(0).max(100_000),
+});
+
+const settingsSchema = z
+  .object({
+    id: z.string().uuid(),
+    bank_account_name: z.string().trim().max(120),
+    bank_account_number: z.string().trim().max(60),
+    bank_name: z.string().trim().max(120),
+    bank_note: z.string().trim().max(400),
+    whatsapp_number: z.string().trim().max(40),
+    delivery_mode: z.enum(["pickup_only", "fixed_zones", "distance"]),
+    delivery_origin_postal_code: z.string().trim().max(12).nullable(),
+    delivery_distance_bands: z.array(distanceBandSchema).max(12).default([]),
+  })
+  .superRefine((v, ctx) => {
+    if (v.delivery_mode !== "distance") return;
+    if (!v.delivery_origin_postal_code) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Distance pricing needs the postal code you deliver from.",
+        path: ["delivery_origin_postal_code"],
+      });
+    }
+    if (v.delivery_distance_bands.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Add at least one distance band, otherwise no fee can be worked out.",
+        path: ["delivery_distance_bands"],
+      });
+    }
+  });
+
 export const adminSaveSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => settingsSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { id, delivery_distance_bands, ...rest } = data;
+    const patch = {
+      ...rest,
+      delivery_distance_config: {
+        bands: [...delivery_distance_bands].sort((a, b) => a.max_km - b.max_km),
+      },
+    };
+    const { error } = await db.from("settings").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* ------------------------------------------------------------------ *
+ * Product option groups and choices
+ * ------------------------------------------------------------------ */
+
+export const adminListOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ product_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const { data: groups, error } = await db
+      .from("product_option_groups")
+      .select("*")
+      .eq("product_id", data.product_id)
+      .order("sort_order");
+    if (error) throw new Error(error.message);
+    const ids = (groups ?? []).map((g) => g.id);
+    const choices = ids.length
+      ? (await db.from("product_option_choices").select("*").in("group_id", ids).order("sort_order"))
+          .data ?? []
+      : [];
+    return { groups: groups ?? [], choices };
+  });
+
+const keyRule = z
+  .string()
+  .trim()
+  .min(1)
+  .max(60)
+  .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers and hyphens");
+
+export const adminSaveOptionGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
     z
       .object({
-        id: z.string().uuid(),
-        bank_account_name: z.string().trim().max(120),
-        bank_account_number: z.string().trim().max(60),
-        bank_name: z.string().trim().max(120),
-        bank_note: z.string().trim().max(400),
-        whatsapp_number: z.string().trim().max(40),
+        id: z.string().uuid().optional(),
+        product_id: z.string().uuid(),
+        key: keyRule,
+        label: z.string().trim().min(1).max(120),
+        required: z.boolean(),
+        available: z.boolean(),
+        sort_order: z.number().int().min(0).max(999),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const { id, ...row } = data;
+    if (id) {
+      const { error } = await db.from("product_option_groups").update(row).eq("id", id);
+      if (error) throw new Error(error.message);
+      return { ok: true, id };
+    }
+    const { data: created, error } = await db
+      .from("product_option_groups")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error || !created) throw new Error(error?.message ?? "Could not save that option group.");
+    return { ok: true, id: created.id };
+  });
+
+export const adminDeleteOptionGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    await db.from("product_option_choices").delete().eq("group_id", data.id);
+    const { error } = await db.from("product_option_groups").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminSaveOptionChoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        group_id: z.string().uuid(),
+        key: keyRule,
+        label: z.string().trim().min(1).max(120),
+        price_delta_cents: z.number().int().min(-100_000).max(1_000_000),
+        available: z.boolean(),
+        sort_order: z.number().int().min(0).max(999),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const { id, ...row } = data;
+    if (id) {
+      const { error } = await db.from("product_option_choices").update(row).eq("id", id);
+      if (error) throw new Error(error.message);
+      return { ok: true, id };
+    }
+    const { data: created, error } = await db
+      .from("product_option_choices")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error || !created) throw new Error(error?.message ?? "Could not save that choice.");
+    return { ok: true, id: created.id };
+  });
+
+export const adminDeleteOptionChoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const { error } = await db.from("product_option_choices").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* ------------------------------------------------------------------ *
+ * Delivery zones
+ * ------------------------------------------------------------------ */
+
+export const adminListDeliveryZones = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { data, error } = await db.from("delivery_zones").select("*").order("sort_order");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const adminSaveDeliveryZone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        name: z.string().trim().min(2).max(120),
+        postal_prefixes: z
+          .array(
+            z
+              .string()
+              .trim()
+              .min(1)
+              .max(6)
+              .transform((s) => s.toUpperCase().replace(/\s/g, "")),
+          )
+          .min(1)
+          .max(60),
+        fee_cents: z.number().int().min(0).max(100_000),
+        active: z.boolean(),
+        sort_order: z.number().int().min(0).max(999),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const db = await admin();
-    const { id, ...patch } = data;
-    const { error } = await db.from("settings").update(patch).eq("id", id);
+    const { id, ...row } = data;
+    if (id) {
+      const { error } = await db.from("delivery_zones").update(row).eq("id", id);
+      if (error) throw new Error(error.message);
+      return { ok: true, id };
+    }
+    const { data: created, error } = await db
+      .from("delivery_zones")
+      .insert(row)
+      .select("id")
+      .single();
+    if (error || !created) throw new Error(error?.message ?? "Could not save that zone.");
+    return { ok: true, id: created.id };
+  });
+
+export const adminDeleteDeliveryZone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { error } = await db.from("delivery_zones").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

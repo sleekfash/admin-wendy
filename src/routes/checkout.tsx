@@ -17,7 +17,7 @@ import {
   FALLBACK_SETTINGS,
   FALLBACK_BANK_DETAILS,
 } from "@/lib/shop";
-import { placeOrder, type PlaceOrderInput } from "@/lib/orders.functions";
+import { placeOrder, previewCart, type PlaceOrderInput } from "@/lib/orders.functions";
 
 const TITLE = "Checkout — Wendy's Bakehouse, Cakes in Toronto";
 const DESC =
@@ -90,6 +90,7 @@ function CheckoutPage() {
     pickup_window: "Flexible",
     fulfilment: "pickup" as "pickup" | "delivery",
     delivery_area: "",
+    delivery_postal_code: "",
     occasion: "",
     notes: "",
     allergies: "",
@@ -99,6 +100,29 @@ function CheckoutPage() {
   });
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const preview = useServerFn(previewCart);
+  const cartRequest = items.map((i) => ({
+    slug: i.slug,
+    quantity: i.quantity,
+    options: i.options,
+    choices: i.choices ?? [],
+    notes: i.notes,
+  }));
+  const postal = form.delivery_postal_code.trim();
+  const { data: quote, isFetching: quoting } = useQuery({
+    queryKey: ["checkout-total", cartRequest, form.fulfilment, postal],
+    enabled: items.length > 0 && (form.fulfilment === "pickup" || postal.length >= 3),
+    queryFn: () =>
+      preview({
+        data: {
+          fulfilment: form.fulfilment,
+          ...(postal ? { delivery_postal_code: postal } : {}),
+          items: cartRequest,
+        },
+      }),
+  });
+  const totals = quote?.ok ? quote.cart : null;
 
   function buildWhatsAppLink(reference: string) {
     const lines = items.map((i) => {
@@ -157,6 +181,8 @@ function CheckoutPage() {
         pickup_window: form.pickup_window,
         fulfilment: form.fulfilment,
         delivery_area: form.fulfilment === "delivery" ? form.delivery_area : undefined,
+        delivery_postal_code:
+          form.fulfilment === "delivery" ? form.delivery_postal_code.trim() : undefined,
         occasion: form.occasion || undefined,
         notes: form.notes || undefined,
         allergies: form.allergies || undefined,
@@ -169,6 +195,7 @@ function CheckoutPage() {
           slug: i.slug,
           quantity: i.quantity,
           options: i.options,
+          choices: i.choices ?? [],
           notes: i.notes,
         })),
       };
@@ -227,12 +254,10 @@ function CheckoutPage() {
             </li>
             <li className="border-t border-border pt-5">
               <h2 className="font-display text-xl">
-                {done.dueNowCents > 0 ? `Total ${formatMoney(done.dueNowCents)}` : "Pricing"}
+                {done.dueNowCents > 0 ? `Due now ${formatMoney(done.dueNowCents)}` : "Pricing"}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {done.hasQuoteItems
-                  ? "Quoted items are priced within 24 hours and added to your total."
-                  : "Your order is marked Not Paid until payment lands."}
+                Your order is marked Not Paid until Wendy verifies your payment.
               </p>
             </li>
             <li className="border-t border-border pt-5">
@@ -359,7 +384,7 @@ function CheckoutPage() {
                 {(
                   [
                     ["pickup", "Pickup in Etobicoke"],
-                    ["delivery", "Delivery (quoted)"],
+                    ["delivery", "Delivery to your postal code"],
                   ] as const
                 ).map(([value, label]) => (
                   <button
@@ -379,14 +404,26 @@ function CheckoutPage() {
             </fieldset>
 
             {form.fulfilment === "delivery" && (
-              <div className="space-y-2">
-                <Label htmlFor="area">Delivery area</Label>
-                <Input
-                  id="area"
-                  maxLength={160}
-                  value={form.delivery_area}
-                  onChange={(e) => set("delivery_area", e.target.value)}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="postal">Postal code</Label>
+                  <Input
+                    id="postal"
+                    maxLength={12}
+                    placeholder="M9C 1A1"
+                    value={form.delivery_postal_code}
+                    onChange={(e) => set("delivery_postal_code", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="area">Street address</Label>
+                  <Input
+                    id="area"
+                    maxLength={160}
+                    value={form.delivery_area}
+                    onChange={(e) => set("delivery_area", e.target.value)}
+                  />
+                </div>
               </div>
             )}
 
@@ -519,29 +556,80 @@ function CheckoutPage() {
             <div className="rounded-[1.5rem] border border-border bg-secondary p-6 md:sticky md:top-28">
               <h2 className="eyebrow text-muted-foreground">Your order</h2>
               <ul className="mt-4 space-y-3 text-sm">
-                {items.map((item, i) => (
-                  <li key={`${item.slug}-${i}`} className="flex justify-between gap-4">
+                {(totals?.lines ?? []).map((line, i) => (
+                  <li key={`${line.product_slug}-${i}`} className="flex justify-between gap-4">
                     <span>
-                      {item.quantity} × {item.name}
+                      {line.quantity} × {line.name}
+                      {line.options_snapshot.length > 0 && (
+                        <span className="block text-xs text-muted-foreground">
+                          {line.options_snapshot.map((o) => o.choice_label).join(", ")}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 text-muted-foreground">
-                      {lineDueCents(item) > 0 ? formatMoney(lineDueCents(item)) : "Quoted"}
+                      {formatMoney(line.line_total_cents)}
                     </span>
                   </li>
                 ))}
+                {!totals &&
+                  items.map((item, i) => (
+                    <li key={`${item.slug}-${i}`} className="flex justify-between gap-4">
+                      <span>
+                        {item.quantity} × {item.name}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {formatMoney(lineDueCents(item))}
+                      </span>
+                    </li>
+                  ))}
               </ul>
-              <div className="mt-5 flex justify-between border-t border-border pt-4">
-                <span className="text-sm font-semibold">Subtotal</span>
-                <span className="font-display text-xl">{formatMoney(dueNowCents)}</span>
+              <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>{formatMoney(totals?.subtotal_cents ?? dueNowCents)}</span>
+                </div>
+                {totals && form.fulfilment === "delivery" && (
+                  <div className="flex justify-between">
+                    <span>
+                      Delivery
+                      {totals.delivery.detail ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {totals.delivery.detail}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span>{formatMoney(totals.delivery.fee_cents)}</span>
+                  </div>
+                )}
+                {totals && (
+                  <>
+                    <div className="flex justify-between border-t border-border pt-2 font-semibold">
+                      <span>Order total</span>
+                      <span>{formatMoney(totals.total_cents)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-semibold">Due now</span>
+                      <span className="font-display text-xl">
+                        {formatMoney(totals.due_now_cents)}
+                      </span>
+                    </div>
+                    {totals.balance_cents > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Balance of {formatMoney(totals.balance_cents)} due before collection.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
-              {hasQuoteItems && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Quoted items are priced in your confirmation within 24 hours.
-                </p>
+              {quoting && (
+                <p className="mt-3 text-xs text-muted-foreground">Working out your total…</p>
+              )}
+              {quote && !quote.ok && (
+                <p className="mt-3 text-xs text-destructive">{quote.message}</p>
               )}
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || (form.fulfilment === "delivery" && !totals)}
                 className="mt-6 w-full rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy

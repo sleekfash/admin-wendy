@@ -34,7 +34,7 @@ export function SiteFooter() {
           <ul className="mt-4 space-y-2 text-sm text-cocoa-foreground/80">
             <li><Link to="/menu">Menu</Link></li>
             <li><Link to="/pricing">Pricing</Link></li>
-            <li><Link to="/order">Start an order</Link></li>
+            <li><Link to="/menu">Start an order</Link></li>
             <li><Link to="/about">About Wendy</Link></li>
             <li><Link to="/contact">Contact &amp; pickup</Link></li>
           </ul>
@@ -44,7 +44,7 @@ export function SiteFooter() {
           <h2 className="eyebrow text-gold">Pickup</h2>
           <p className="mt-4 text-sm text-cocoa-foreground/80">
             Etobicoke, Toronto, Ontario. Address shared once your date is confirmed.
-            Delivery quoted by postcode.
+            Delivery fee by postal code, shown at checkout.
           </p>
           <ul className="mt-5 flex gap-3">
             {SOCIALS.map(({ href, label, Icon }) => (

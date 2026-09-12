@@ -28,6 +28,7 @@ const orderSchema = z.object({
   pickup_window: z.string().trim().max(60).optional(),
   fulfilment: z.enum(["pickup", "delivery"]),
   delivery_area: z.string().trim().max(160).optional(),
+  delivery_postal_code: z.string().trim().max(12).optional(),
   occasion: z.string().trim().max(80).optional(),
   notes: z.string().trim().max(1000).optional(),
   allergies: z.string().trim().max(500).optional(),
@@ -69,18 +70,20 @@ export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { priceLines, PricingError } = await import("@/lib/pricing.server");
+    const { priceCart, PricingError } = await import("@/lib/pricing.server");
 
-    // Every price is recalculated here from current product rows.
-    let priced;
+    // Every price, and the delivery fee, is recalculated here from current rows.
+    let cart;
     try {
-      priced = await priceLines(
+      cart = await priceCart(
         data.items.map((i) => ({
           slug: i.slug,
           quantity: i.quantity,
           choices: i.choices,
           notes: i.notes ?? null,
         })),
+        data.fulfilment,
+        data.delivery_postal_code ?? null,
       );
     } catch (error) {
       throw new Error(
@@ -89,6 +92,7 @@ export const placeOrder = createServerFn({ method: "POST" })
           : "We could not price your basket. Please try again.",
       );
     }
+    const priced = cart.lines;
 
     // Lead time is enforced server-side from the product records.
     if (data.pickup_date) {
@@ -103,8 +107,8 @@ export const placeOrder = createServerFn({ method: "POST" })
       }
     }
 
-    const subtotal = priced.reduce((n, l) => n + l.line_total_cents, 0);
-    const dueNow = priced.reduce((n, l) => n + l.line_due_now_cents, 0);
+    const subtotal = cart.subtotal_cents;
+    const dueNow = cart.due_now_cents;
     const hasQuoteItems = false;
 
     const lines = priced.map((l) => ({
@@ -149,6 +153,11 @@ export const placeOrder = createServerFn({ method: "POST" })
         heard_from: data.heard_from || null,
         subtotal_cents: subtotal,
         due_now_cents: dueNow,
+        delivery_fee_cents: cart.delivery.fee_cents,
+        total_cents: cart.total_cents,
+        balance_cents: cart.balance_cents,
+        delivery_postal_code: cart.delivery.postal_code,
+        delivery_snapshot: cart.delivery,
         has_quote_items: hasQuoteItems,
         status: "new",
         checkout_method: data.checkout_method,
@@ -191,6 +200,9 @@ export const placeOrder = createServerFn({ method: "POST" })
       reference: order.reference,
       dueNowCents: dueNow,
       subtotalCents: subtotal,
+      deliveryFeeCents: cart.delivery.fee_cents,
+      totalCents: cart.total_cents,
+      balanceCents: cart.balance_cents,
       hasQuoteItems,
       slipUploaded,
       lines: lines.map((l) => ({
@@ -202,4 +214,43 @@ export const placeOrder = createServerFn({ method: "POST" })
         options: l.options,
       })),
     };
+  });
+
+/**
+ * Authoritative checkout preview. The browser never computes money; it asks
+ * here and renders exactly what comes back.
+ */
+export const previewCart = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        fulfilment: z.enum(["pickup", "delivery"]),
+        delivery_postal_code: z.string().trim().max(12).optional(),
+        items: z.array(itemSchema).min(1).max(30),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { priceCart, PricingError } = await import("@/lib/pricing.server");
+    try {
+      const cart = await priceCart(
+        data.items.map((i) => ({
+          slug: i.slug,
+          quantity: i.quantity,
+          choices: i.choices,
+          notes: i.notes ?? null,
+        })),
+        data.fulfilment,
+        data.delivery_postal_code ?? null,
+      );
+      return { ok: true as const, cart };
+    } catch (error) {
+      return {
+        ok: false as const,
+        message:
+          error instanceof PricingError
+            ? error.message
+            : "We could not work out your total. Please try again.",
+      };
+    }
   });
