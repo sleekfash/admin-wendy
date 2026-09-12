@@ -231,7 +231,14 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                       {o.pickup_date ?? "—"}
                     </TableCell>
-                    <TableCell>{formatMoney(o.due_now_cents)}</TableCell>
+                    <TableCell>
+                      <div className="min-w-0">
+                        <p>{formatMoney(o.total_cents)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatMoney(o.due_now_cents)} due now
+                        </p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Badge variant={paymentTone(o.payment_status)}>
@@ -354,26 +361,52 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                     >
                       <span>
                         {item.quantity} × {item.name}
-                        {item.options && Object.keys(item.options as object).length > 0 && (
-                          <span className="block text-xs text-muted-foreground">
-                            {Object.entries(item.options as Record<string, string>)
-                              .map(([k, v]) => `${k}: ${v}`)
-                              .join(" · ")}
-                          </span>
-                        )}
+                        {Array.isArray(item.options_snapshot) &&
+                          item.options_snapshot.length > 0 && (
+                            <span className="block text-xs text-muted-foreground">
+                              {(
+                                item.options_snapshot as {
+                                  group_label: string;
+                                  choice_label: string;
+                                }[]
+                              )
+                                .map((o) => `${o.group_label}: ${o.choice_label}`)
+                                .join(" · ")}
+                            </span>
+                          )}
                       </span>
                       <span className="shrink-0">
-                        {item.unit_price_cents != null
-                          ? formatMoney(item.unit_price_cents * item.quantity)
-                          : "Quoted"}
+                        {formatMoney(item.line_total_cents)}
                       </span>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 flex justify-between font-display text-lg">
-                  <span>Total</span>
-                  <span>{formatMoney(selected.due_now_cents)}</span>
-                </p>
+                <div className="mt-3 space-y-1 text-sm">
+                  <p className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>{formatMoney(selected.subtotal_cents)}</span>
+                  </p>
+                  {selected.delivery_fee_cents > 0 && (
+                    <p className="flex justify-between">
+                      <span>Delivery{selected.delivery_postal_code ? ` · ${selected.delivery_postal_code}` : ""}</span>
+                      <span>{formatMoney(selected.delivery_fee_cents)}</span>
+                    </p>
+                  )}
+                  <p className="flex justify-between font-display text-lg">
+                    <span>Total</span>
+                    <span>{formatMoney(selected.total_cents)}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <span>Paid now</span>
+                    <span>{formatMoney(selected.due_now_cents)}</span>
+                  </p>
+                  {selected.balance_cents > 0 && (
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>Balance due</span>
+                      <span>{formatMoney(selected.balance_cents)}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
               {selected.checkout_method === "bank_transfer" && (
