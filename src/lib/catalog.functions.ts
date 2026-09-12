@@ -24,11 +24,14 @@ function publicClient() {
 /** Public catalogue read: categories, available products and shop settings. */
 export const getCatalog = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = publicClient();
+  // The settings row is admin-only in the Data API, so the one public field
+  // (the WhatsApp number) is read server-side with the trusted client.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const [cats, prods, settings, groups, choices] = await Promise.all([
     supabase.from("categories").select("*").eq("visible", true).order("sort_order"),
     supabase.from("products").select("*").eq("available", true).order("sort_order"),
-    supabase.from("settings").select("whatsapp_number").limit(1).maybeSingle(),
+    supabaseAdmin.from("settings").select("whatsapp_number").limit(1).maybeSingle(),
     supabase
       .from("product_option_groups")
       .select("id, product_id, key, label, required, available, sort_order")

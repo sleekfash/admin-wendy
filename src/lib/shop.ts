@@ -73,8 +73,8 @@ export type BankDetails = {
 
 export const FALLBACK_BANK_DETAILS: BankDetails = {
   bank_account_name: "Wendy's Bakehouse",
-  bank_account_number: "0000000000",
-  bank_name: "Bank name pending",
+  bank_account_number: "0011223344",
+  bank_name: "Wends bakery",
   bank_note: "Use your order reference as the transfer description.",
 };
 

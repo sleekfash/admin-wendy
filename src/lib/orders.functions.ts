@@ -14,6 +14,14 @@ const itemSchema = z.object({
 
 const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 
+const SLIP_EXTENSIONS = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "application/pdf": "pdf",
+} as const;
+
 const slipSchema = z.object({
   filename: z.string().trim().min(1).max(160),
   content_type: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"]),
@@ -136,6 +144,17 @@ export const placeOrder = createServerFn({ method: "POST" })
 
     const isTransfer = data.checkout_method === "bank_transfer";
 
+    // The slip is decoded and size-checked before anything is written, so a
+    // rejected file never leaves a half-finished order behind.
+    let slipBytes: Uint8Array | null = null;
+    if (data.slip) {
+      slipBytes = decodeBase64(data.slip.data_base64);
+      if (slipBytes.byteLength > MAX_SLIP_BYTES) {
+        throw new Error("That payment slip is larger than 5MB. Please upload a smaller file.");
+      }
+    }
+
+
     // Order + items are written in one database transaction.
     const { data: created, error: orderError } = await supabaseAdmin.rpc("create_order", {
       _order: {
@@ -174,16 +193,15 @@ export const placeOrder = createServerFn({ method: "POST" })
     if (orderError || !order) throw new Error("We could not save your order. Please try again.");
 
     let slipUploaded = false;
-    if (data.slip) {
-      const bytes = decodeBase64(data.slip.data_base64);
-      if (bytes.byteLength > MAX_SLIP_BYTES) {
-        throw new Error("That payment slip is larger than 5MB. Please upload a smaller file.");
-      }
-      const ext = data.slip.filename.split(".").pop()?.toLowerCase().slice(0, 5) || "jpg";
+    if (data.slip && slipBytes) {
+      // The file name is never used to build the storage path: the extension is
+      // derived from the validated content type, so nothing can escape the
+      // order's own folder.
+      const ext = SLIP_EXTENSIONS[data.slip.content_type];
       const path = `${order.id}/slip.${ext}`;
       const { error: uploadError } = await supabaseAdmin.storage
         .from("payment-slips")
-        .upload(path, bytes, { contentType: data.slip.content_type, upsert: true });
+        .upload(path, slipBytes, { contentType: data.slip.content_type, upsert: true });
       if (uploadError) {
         // The order stands; it is simply flagged as missing evidence.
         await supabaseAdmin
