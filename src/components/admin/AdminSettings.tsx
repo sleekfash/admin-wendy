@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 
 type DeliveryMode = "pickup_only" | "fixed_zones" | "distance";
-type Band = { up_to_km: number; fee_cents: number };
+type Band = { max_km: number; fee_cents: number };
 
 type Form = {
   bank_account_name: string;
@@ -42,9 +42,9 @@ function readBands(config: unknown): Band[] {
   const bands = (config as { bands?: unknown } | null)?.bands;
   if (!Array.isArray(bands)) return [];
   return bands
-    .map((b) => b as { up_to_km?: unknown; fee_cents?: unknown })
-    .filter((b) => typeof b.up_to_km === "number" && typeof b.fee_cents === "number")
-    .map((b) => ({ up_to_km: b.up_to_km as number, fee_cents: b.fee_cents as number }));
+    .map((b) => b as { max_km?: unknown; fee_cents?: unknown })
+    .filter((b) => typeof b.max_km === "number" && typeof b.fee_cents === "number")
+    .map((b) => ({ max_km: b.max_km as number, fee_cents: b.fee_cents as number }));
 }
 
 export function AdminSettings() {
@@ -179,10 +179,10 @@ export function AdminSettings() {
                     className="w-24"
                     inputMode="decimal"
                     aria-label="Kilometres"
-                    value={String(band.up_to_km)}
+                    value={String(band.max_km)}
                     onChange={(e) => {
                       const bands = [...form.delivery_distance_bands];
-                      bands[i] = { ...band, up_to_km: Number(e.target.value) || 0 };
+                      bands[i] = { ...band, max_km: Number(e.target.value) || 0 };
                       setForm({ ...form, delivery_distance_bands: bands });
                     }}
                   />
@@ -228,7 +228,7 @@ export function AdminSettings() {
                     ...form,
                     delivery_distance_bands: [
                       ...form.delivery_distance_bands,
-                      { up_to_km: 10, fee_cents: 1500 },
+                      { max_km: 10, fee_cents: 1500 },
                     ],
                   })
                 }

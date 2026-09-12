@@ -380,7 +380,7 @@ export const adminGetSettings = createServerFn({ method: "GET" })
   });
 
 const distanceBandSchema = z.object({
-  up_to_km: z.number().min(0).max(500),
+  max_km: z.number().min(0).max(500),
   fee_cents: z.number().int().min(0).max(100_000),
 });
 
@@ -424,7 +424,7 @@ export const adminSaveSettings = createServerFn({ method: "POST" })
     const patch = {
       ...rest,
       delivery_distance_config: {
-        bands: [...delivery_distance_bands].sort((a, b) => a.up_to_km - b.up_to_km),
+        bands: [...delivery_distance_bands].sort((a, b) => a.max_km - b.max_km),
       },
     };
     const { error } = await db.from("settings").update(patch).eq("id", id);
