@@ -254,12 +254,10 @@ function CheckoutPage() {
             </li>
             <li className="border-t border-border pt-5">
               <h2 className="font-display text-xl">
-                {done.dueNowCents > 0 ? `Total ${formatMoney(done.dueNowCents)}` : "Pricing"}
+                {done.dueNowCents > 0 ? `Due now ${formatMoney(done.dueNowCents)}` : "Pricing"}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {done.hasQuoteItems
-                  ? "Quoted items are priced within 24 hours and added to your total."
-                  : "Your order is marked Not Paid until payment lands."}
+                Your order is marked Not Paid until Wendy verifies your payment.
               </p>
             </li>
             <li className="border-t border-border pt-5">
