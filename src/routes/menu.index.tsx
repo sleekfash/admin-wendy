@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { CtaBand, PageHeader, ProductCard, ProductCardSkeleton, Section } from "@/components/site/Bits";
 import { catalogQueryOptions } from "@/lib/shop";
 
-const TITLE = "Menu & Prices — Wendy's Bakehouse, Cakes in Toronto";
+const TITLE = "Cakes & treats — Wendy's Bakehouse, Toronto";
 const DESC =
-  "Browse custom celebration cakes and themed cakes with published prices and lead times. Pickup in Etobicoke, Toronto.";
+  "Browse made-to-order celebration cakes, cake loaves, small chops and party drinks. Prices in CAD, pickup in Etobicoke, Toronto.";
 
 type Search = { category?: string };
 
@@ -39,7 +39,7 @@ function MenuPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Menu"
+        eyebrow="Cakes & treats"
         title="The whole menu, with the prices written down."
         lead="Custom celebration cakes, cake loaves, small chops and party drinks. Every price is written down — choose the size and finish and your total is worked out for you."
       />

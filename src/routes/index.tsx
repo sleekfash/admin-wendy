@@ -80,7 +80,7 @@ function Index() {
                 to="/menu"
                 className="rounded-sm border border-cocoa-foreground/30 px-6 py-3.5 text-sm font-semibold transition-colors hover:border-gold hover:text-gold"
               >
-                See the menu &amp; prices
+                Browse cakes &amp; treats
               </Link>
             </div>
             <ul className="mt-10 grid gap-4 border-t border-cocoa-foreground/15 pt-6 text-sm text-cocoa-foreground/75 sm:grid-cols-3">
