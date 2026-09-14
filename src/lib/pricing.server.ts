@@ -302,27 +302,37 @@ export async function resolveDelivery(
 async function drivingDistanceKm(originPostal: string, destinationPostal: string): Promise<number> {
   const lovableKey = process.env["LOVABLE_API_KEY"];
   const mapsKey = process.env["GOOGLE_MAPS_API_KEY"];
-  if (!lovableKey || !mapsKey) {
+  if (!mapsKey) {
     throw new PricingError("Delivery pricing is unavailable right now. Please choose pickup.");
   }
 
-  const response = await fetch(
-    "https://connector-gateway.lovable.dev/google_maps/routes/directions/v2:computeRoutes",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": mapsKey,
-        "Content-Type": "application/json",
-        "X-Goog-FieldMask": "routes.distanceMeters",
-      },
-      body: JSON.stringify({
-        origin: { address: `${originPostal}, Canada` },
-        destination: { address: `${destinationPostal}, Canada` },
-        travelMode: "DRIVE",
-      }),
-    },
-  );
+  // On Lovable the Google Maps key is used through the connector gateway. On any
+  // other host (Vercel, Netlify, a VPS) the same key calls Google directly.
+  const viaGateway = Boolean(lovableKey);
+  const url = viaGateway
+    ? "https://connector-gateway.lovable.dev/google_maps/routes/directions/v2:computeRoutes"
+    : "https://routes.googleapis.com/directions/v2:computeRoutes";
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Goog-FieldMask": "routes.distanceMeters",
+  };
+  if (viaGateway) {
+    headers["Authorization"] = `Bearer ${lovableKey}`;
+    headers["X-Connection-Api-Key"] = mapsKey;
+  } else {
+    headers["X-Goog-Api-Key"] = mapsKey;
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      origin: { address: `${originPostal}, Canada` },
+      destination: { address: `${destinationPostal}, Canada` },
+      travelMode: "DRIVE",
+    }),
+  });
+
 
   if (!response.ok) {
     const body = await response.text();
