@@ -132,7 +132,6 @@ INSERT INTO public.settings (id, singleton, bank_account_name, bank_account_numb
 -- Data for Name: user_roles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.user_roles (id, user_id, role, created_at) VALUES ('6a31c34b-3845-4c11-baff-3a11b326253d', '99744110-45d8-4eda-93f1-c29b8fdf1d00', 'admin', '2026-09-12 16:43:50.031153+00');
 
 
 --
