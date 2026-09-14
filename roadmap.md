@@ -7,3 +7,4 @@
 - [x] Stage 5 — Real bank-transfer order placed and verified in /admin with slip
 - [x] Customer review artwork on the home page; real bank name and account number saved
 - [x] Deep build audit + penetration pass (anon/customer database probes, price-tampering tests, slip upload hardening)
+- [x] Self-hosting handover (Option 3): database structure/data export, storage + admin SQL, `.env.example`, `vercel.json`, portable Google Maps call, and step-by-step guide in `deploy/DEPLOYMENT.md`
