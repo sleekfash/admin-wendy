@@ -4,7 +4,7 @@ import meatPies from "@/assets/meat-pies.jpg";
 import cakeLoaves from "@/assets/cake-loaves.jpg";
 import { CtaBand, Eyebrow, PageHeader, Section } from "@/components/site/Bits";
 
-const TITLE = "About Wendy — Naija Cakes & Pastries in Toronto";
+const TITLE = "Our story — Naija Cakes & Pastries in Toronto";
 const DESC =
   "A one-woman Etobicoke bakehouse: Certified Food Handler, made-to-order celebration cakes, and the Nigerian meat pies and cake loaves Toronto's diaspora asks for.";
 
@@ -26,7 +26,7 @@ function AboutPage() {
   return (
     <>
       <PageHeader
-        eyebrow="About"
+        eyebrow="Our story"
         title="One baker, one kitchen, two traditions."
         lead="Wendy's Bakehouse is a made-to-order bakery in Etobicoke. Not a chain, not a shopfront — one Certified Food Handler baking to a date you have circled on a calendar."
       />

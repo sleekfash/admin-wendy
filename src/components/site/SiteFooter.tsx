@@ -32,10 +32,10 @@ export function SiteFooter() {
         <div>
           <h2 className="eyebrow text-gold">Explore</h2>
           <ul className="mt-4 space-y-2 text-sm text-cocoa-foreground/80">
-            <li><Link to="/menu">Menu</Link></li>
+            <li><Link to="/menu">Cakes &amp; treats</Link></li>
             <li><Link to="/pricing">Pricing</Link></li>
             <li><Link to="/menu">Start an order</Link></li>
-            <li><Link to="/about">About Wendy</Link></li>
+            <li><Link to="/about">Our story</Link></li>
             <li><Link to="/contact">Contact &amp; pickup</Link></li>
           </ul>
         </div>
