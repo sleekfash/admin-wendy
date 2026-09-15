@@ -221,13 +221,6 @@ function CheckoutPage() {
         transfer_reference:
           method === "bank_transfer" ? form.transfer_reference || undefined : undefined,
         transfer_date: method === "bank_transfer" ? form.transfer_date || undefined : undefined,
-        items: items.map((i) => ({
-          slug: i.slug,
-          quantity: i.quantity,
-          options: i.options,
-          choices: i.choices ?? [],
-          notes: i.notes,
-        })),
       };
 
       if (method === "bank_transfer" && slip) {
