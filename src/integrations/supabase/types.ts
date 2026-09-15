@@ -186,6 +186,7 @@ export type Database = {
           id: string
           notes: string | null
           occasion: string | null
+          paid_at: string | null
           payer_name: string | null
           payment_provider: string | null
           payment_reference: string | null
@@ -196,6 +197,8 @@ export type Database = {
           reference: string
           slip_path: string | null
           status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
           subtotal_cents: number
           total_cents: number
           transfer_date: string | null
@@ -220,6 +223,7 @@ export type Database = {
           id?: string
           notes?: string | null
           occasion?: string | null
+          paid_at?: string | null
           payer_name?: string | null
           payment_provider?: string | null
           payment_reference?: string | null
@@ -230,6 +234,8 @@ export type Database = {
           reference: string
           slip_path?: string | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           subtotal_cents?: number
           total_cents?: number
           transfer_date?: string | null
@@ -254,6 +260,7 @@ export type Database = {
           id?: string
           notes?: string | null
           occasion?: string | null
+          paid_at?: string | null
           payer_name?: string | null
           payment_provider?: string | null
           payment_reference?: string | null
@@ -264,6 +271,8 @@ export type Database = {
           reference?: string
           slip_path?: string | null
           status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
           subtotal_cents?: number
           total_cents?: number
           transfer_date?: string | null

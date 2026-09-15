@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Landmark, Upload } from "lucide-react";
+import { MessageCircle, Landmark, Upload, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, Section } from "@/components/site/Bits";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,9 @@ import {
   FALLBACK_BANK_DETAILS,
 } from "@/lib/shop";
 import { placeOrder, previewCart, type PlaceOrderInput } from "@/lib/orders.functions";
+import { cardPaymentsEnabled, startCardPayment } from "@/lib/payments.functions";
+
+type PayMethod = "whatsapp" | "bank_transfer" | "card";
 
 const TITLE = "Checkout — Wendy's Bakehouse, Cakes in Toronto";
 const DESC =
@@ -66,19 +69,27 @@ type Receipt = {
   reference: string;
   dueNowCents: number;
   hasQuoteItems: boolean;
-  method: "whatsapp" | "bank_transfer";
+  method: PayMethod;
   waLink: string;
 };
 
 function CheckoutPage() {
   const { items, dueNowCents, hasQuoteItems, clear } = useCart();
   const submitOrder = useServerFn(placeOrder);
+  const payByCard = useServerFn(startCardPayment);
+  const checkCard = useServerFn(cardPaymentsEnabled);
   const { data: catalog } = useQuery(catalogQueryOptions);
   const settings = catalog?.settings ?? FALLBACK_SETTINGS;
   const { data: bankData } = useQuery(bankDetailsQueryOptions(items.map((i) => i.slug)));
   const bank = bankData ?? FALLBACK_BANK_DETAILS;
+  const { data: cardState } = useQuery({
+    queryKey: ["card-payments-enabled"],
+    queryFn: () => checkCard({}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const cardEnabled = cardState?.enabled === true;
 
-  const [method, setMethod] = useState<"whatsapp" | "bank_transfer">("whatsapp");
+  const [method, setMethod] = useState<PayMethod>("whatsapp");
   const [busy, setBusy] = useState(false);
   const [slip, setSlip] = useState<File | null>(null);
   const [done, setDone] = useState<Receipt | null>(null);
@@ -173,7 +184,7 @@ function CheckoutPage() {
 
     setBusy(true);
     try {
-      const payload: PlaceOrderInput = {
+      const core = {
         customer_name: form.customer_name,
         phone: form.phone,
         email: form.email || undefined,
@@ -186,11 +197,6 @@ function CheckoutPage() {
         occasion: form.occasion || undefined,
         notes: form.notes || undefined,
         allergies: form.allergies || undefined,
-        checkout_method: method,
-        payer_name: method === "bank_transfer" ? form.payer_name : undefined,
-        transfer_reference:
-          method === "bank_transfer" ? form.transfer_reference || undefined : undefined,
-        transfer_date: method === "bank_transfer" ? form.transfer_date || undefined : undefined,
         items: items.map((i) => ({
           slug: i.slug,
           quantity: i.quantity,
@@ -198,6 +204,23 @@ function CheckoutPage() {
           choices: i.choices ?? [],
           notes: i.notes,
         })),
+      };
+
+      if (method === "card") {
+        // The amount is worked out on the server; we only follow its redirect.
+        const session = await payByCard({ data: core });
+        clear();
+        window.location.assign(session.url);
+        return;
+      }
+
+      const payload: PlaceOrderInput = {
+        ...core,
+        checkout_method: method,
+        payer_name: method === "bank_transfer" ? form.payer_name : undefined,
+        transfer_reference:
+          method === "bank_transfer" ? form.transfer_reference || undefined : undefined,
+        transfer_date: method === "bank_transfer" ? form.transfer_date || undefined : undefined,
       };
 
       if (method === "bank_transfer" && slip) {
@@ -461,10 +484,16 @@ function CheckoutPage() {
               <h2 className="eyebrow text-muted-foreground">How you&rsquo;d like to pay</h2>
               <Tabs
                 value={method}
-                onValueChange={(v) => setMethod(v as "whatsapp" | "bank_transfer")}
+                onValueChange={(v) => setMethod(v as PayMethod)}
                 className="mt-4"
               >
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className={`grid w-full ${cardEnabled ? "grid-cols-3" : "grid-cols-2"}`}>
+                  {cardEnabled && (
+                    <TabsTrigger value="card" className="gap-2">
+                      <CreditCard className="h-4 w-4" aria-hidden="true" />
+                      Card
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="whatsapp" className="gap-2">
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />
                     WhatsApp
@@ -474,6 +503,22 @@ function CheckoutPage() {
                     Bank transfer
                   </TabsTrigger>
                 </TabsList>
+
+                {cardEnabled && (
+                  <TabsContent value="card" className="mt-5 space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      Pay securely by card. We place your order, then hand you to Stripe&rsquo;s
+                      payment page — your card details never touch this site.
+                    </p>
+                    {totals && totals.balance_cents > 0 && (
+                      <p>
+                        You&rsquo;ll be charged the {formatMoney(totals.due_now_cents)} deposit now;
+                        the {formatMoney(totals.balance_cents)} balance is due before collection.
+                      </p>
+                    )}
+                  </TabsContent>
+                )}
+
 
                 <TabsContent value="whatsapp" className="mt-5 text-sm text-muted-foreground">
                   We place the order and open WhatsApp with an itemised receipt already written out,
@@ -629,17 +674,23 @@ function CheckoutPage() {
               )}
               <button
                 type="submit"
-                disabled={busy || (form.fulfilment === "delivery" && !totals)}
+                disabled={busy || (form.fulfilment === "delivery" && !totals) || (method === "card" && !totals)}
                 className="mt-6 w-full rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy
-                  ? "Placing your order…"
-                  : method === "whatsapp"
-                    ? "Place order & open WhatsApp"
-                    : "Place order & submit slip"}
+                  ? method === "card"
+                    ? "Opening secure payment…"
+                    : "Placing your order…"
+                  : method === "card"
+                    ? `Pay ${totals ? formatMoney(totals.due_now_cents) : "by card"} securely`
+                    : method === "whatsapp"
+                      ? "Place order & open WhatsApp"
+                      : "Place order & submit slip"}
               </button>
               <p className="mt-3 text-xs text-muted-foreground">
-                Orders start as Not Paid until Wendy verifies payment.
+                {method === "card"
+                  ? "Card orders are marked paid automatically once Stripe confirms the charge."
+                  : "Orders start as Not Paid until Wendy verifies payment."}
               </p>
             </div>
           </aside>

@@ -13,9 +13,13 @@ Total time: about an hour, most of it waiting.
 ## Part 1 — Get the code into GitHub
 
 The project is already connected to GitHub from inside Lovable
-(top right menu → GitHub → Connect). Do that first if it isn't connected yet,
-and note the repository name it creates. Everything after this reads from that
-repository.
+(top right menu → GitHub → Connect). Do that first if it isn't connected yet.
+
+Your repository: `https://github.com/sleekfash/admin-wendy.git`
+
+Everything after this reads from that repository. The site currently live on
+Lovable is `https://admin-wendy.lovable.app/` and it keeps working untouched
+until you switch the domain over at the very end.
 
 ---
 
@@ -85,6 +89,8 @@ Left sidebar → **Project Settings** → **API**. Keep this tab open, you need:
    | `SUPABASE_PROJECT_ID` | your project reference ID |
    | `SUPABASE_SERVICE_ROLE_KEY` | your service_role key (secret) |
    | `GOOGLE_MAPS_API_KEY` | only if you want distance-based delivery fees (see Part 5) |
+   | `STRIPE_SECRET_KEY` | only if you want card payments (see Part 6) |
+   | `STRIPE_WEBHOOK_SECRET` | only if you want card payments (see Part 6) |
 
 5. Click **Deploy** and wait a few minutes. You get a temporary address like
    `wendys-bakehouse.vercel.app`.
@@ -129,6 +135,26 @@ https://console.cloud.google.com with the **Routes API** enabled, restrict it to
 your Vercel project, and add it as `GOOGLE_MAPS_API_KEY`.
 
 ---
+
+## Part 6 — Turn on card payments (optional)
+
+Card payments stay hidden until you add the two Stripe values, so you can do
+this whenever you're ready. Bank transfer and WhatsApp are unaffected.
+
+1. Sign up at https://stripe.com and stay in **Test mode** for now.
+2. **Developers** → **API keys** → copy the **Secret key** (`sk_test_...`) and add
+   it in Vercel as `STRIPE_SECRET_KEY`.
+3. **Developers** → **Webhooks** → **Add endpoint**:
+   - URL: `https://YOUR-SITE/api/public/stripe-webhook`
+   - Events: `checkout.session.completed` and `checkout.session.expired`
+4. Copy the endpoint's **Signing secret** (`whsec_...`) and add it in Vercel as
+   `STRIPE_WEBHOOK_SECRET`. Redeploy.
+5. Test with card `4242 4242 4242 4242`, any future expiry, any CVC. The order
+   should appear in `/admin` marked paid with the Stripe reference.
+6. When you're happy, repeat steps 2–4 with your **live** keys after Stripe
+   finishes verifying your business.
+
+Refunds are done in the Stripe dashboard; the admin console shows the reference.
 
 ## Afterwards
 

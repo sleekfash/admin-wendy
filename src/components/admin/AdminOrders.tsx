@@ -325,7 +325,11 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                 <DialogTitle className="font-display text-2xl">{selected.reference}</DialogTitle>
                 <DialogDescription>
                   Placed {new Date(selected.created_at).toLocaleString()} ·{" "}
-                  {selected.checkout_method === "bank_transfer" ? "Bank transfer" : "WhatsApp"}
+                  {selected.checkout_method === "bank_transfer"
+                    ? "Bank transfer"
+                    : selected.checkout_method === "card"
+                      ? "Card (Stripe)"
+                      : "WhatsApp"}
                 </DialogDescription>
               </DialogHeader>
 
@@ -408,6 +412,20 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                   )}
                 </div>
               </div>
+
+              {selected.checkout_method === "card" && (
+                <div className="rounded-[0.75rem] border border-border p-3 text-sm">
+                  <h3 className="eyebrow text-muted-foreground">Card payment</h3>
+                  <p className="mt-2">Stripe reference: {selected.payment_reference ?? "—"}</p>
+                  <p>
+                    Paid at:{" "}
+                    {selected.paid_at ? new Date(selected.paid_at).toLocaleString() : "—"}
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    Refunds are handled in your Stripe dashboard.
+                  </p>
+                </div>
+              )}
 
               {selected.checkout_method === "bank_transfer" && (
                 <div className="rounded-[0.75rem] border border-border p-3 text-sm">
