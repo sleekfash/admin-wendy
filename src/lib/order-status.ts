@@ -16,6 +16,10 @@ export const ORDER_STATUSES = [
 export const PAYMENT_STATUSES = [
   "not_paid",
   "pending_verification",
+  // Card payments: awaiting Stripe's confirmation, then set by the webhook.
+  "pending",
+  "expired",
+  "failed",
   "paid",
   "refunded",
 ] as const;
@@ -36,6 +40,9 @@ const NEXT_STATUS: Record<string, OrderStatus[]> = {
 const NEXT_PAYMENT: Record<string, PaymentStatus[]> = {
   not_paid: ["pending_verification", "paid"],
   pending_verification: ["paid", "not_paid"],
+  pending: ["paid", "failed", "not_paid"],
+  expired: ["not_paid", "paid"],
+  failed: ["not_paid", "paid"],
   paid: ["refunded"],
   refunded: [],
 };
