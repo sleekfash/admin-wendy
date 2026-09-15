@@ -484,10 +484,16 @@ function CheckoutPage() {
               <h2 className="eyebrow text-muted-foreground">How you&rsquo;d like to pay</h2>
               <Tabs
                 value={method}
-                onValueChange={(v) => setMethod(v as "whatsapp" | "bank_transfer")}
+                onValueChange={(v) => setMethod(v as PayMethod)}
                 className="mt-4"
               >
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className={`grid w-full ${cardEnabled ? "grid-cols-3" : "grid-cols-2"}`}>
+                  {cardEnabled && (
+                    <TabsTrigger value="card" className="gap-2">
+                      <CreditCard className="h-4 w-4" aria-hidden="true" />
+                      Card
+                    </TabsTrigger>
+                  )}
                   <TabsTrigger value="whatsapp" className="gap-2">
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />
                     WhatsApp
@@ -497,6 +503,22 @@ function CheckoutPage() {
                     Bank transfer
                   </TabsTrigger>
                 </TabsList>
+
+                {cardEnabled && (
+                  <TabsContent value="card" className="mt-5 space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      Pay securely by card. We place your order, then hand you to Stripe&rsquo;s
+                      payment page — your card details never touch this site.
+                    </p>
+                    {totals && totals.balance_cents > 0 && (
+                      <p>
+                        You&rsquo;ll be charged the {formatMoney(totals.due_now_cents)} deposit now;
+                        the {formatMoney(totals.balance_cents)} balance is due before collection.
+                      </p>
+                    )}
+                  </TabsContent>
+                )}
+
 
                 <TabsContent value="whatsapp" className="mt-5 text-sm text-muted-foreground">
                   We place the order and open WhatsApp with an itemised receipt already written out,
