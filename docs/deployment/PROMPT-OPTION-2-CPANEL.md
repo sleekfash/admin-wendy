@@ -27,7 +27,7 @@ on a managed Supabase project.
 1. A Supabase project created, with the four SQL files in `deploy/supabase/`
    run in order (`01-schema.sql`, `02-data.sql`, `03-storage.sql`,
    `04-admin-user.sql`), and an admin login created before file 4.
-2Ready to hand: Supabase Project URL, project reference, publishable/anon key,
+2. Ready to hand: Supabase Project URL, project reference, publishable/anon key,
    service-role key, and the Stripe secret key.
 3. cPanel access, and a domain or subdomain already pointed at the hosting
    account.
