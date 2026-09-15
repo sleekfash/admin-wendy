@@ -325,7 +325,11 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                 <DialogTitle className="font-display text-2xl">{selected.reference}</DialogTitle>
                 <DialogDescription>
                   Placed {new Date(selected.created_at).toLocaleString()} ·{" "}
-                  {selected.checkout_method === "bank_transfer" ? "Bank transfer" : "WhatsApp"}
+                  {selected.checkout_method === "bank_transfer"
+                    ? "Bank transfer"
+                    : selected.checkout_method === "card"
+                      ? "Card (Stripe)"
+                      : "WhatsApp"}
                 </DialogDescription>
               </DialogHeader>
 
