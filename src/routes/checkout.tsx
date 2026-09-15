@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Landmark, Upload } from "lucide-react";
+import { MessageCircle, Landmark, Upload, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, Section } from "@/components/site/Bits";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,9 @@ import {
   FALLBACK_BANK_DETAILS,
 } from "@/lib/shop";
 import { placeOrder, previewCart, type PlaceOrderInput } from "@/lib/orders.functions";
+import { cardPaymentsEnabled, startCardPayment } from "@/lib/payments.functions";
+
+type PayMethod = "whatsapp" | "bank_transfer" | "card";
 
 const TITLE = "Checkout — Wendy's Bakehouse, Cakes in Toronto";
 const DESC =
