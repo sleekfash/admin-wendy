@@ -282,7 +282,10 @@ CREATE TABLE public.orders (
     balance_cents integer DEFAULT 0 NOT NULL,
     delivery_postal_code text,
     delivery_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
-    CONSTRAINT orders_payment_status_check CHECK ((payment_status = ANY (ARRAY['not_paid'::text, 'pending_verification'::text, 'paid'::text, 'refunded'::text]))),
+    stripe_session_id text,
+    stripe_payment_intent_id text,
+    paid_at timestamp with time zone,
+    CONSTRAINT orders_payment_status_check CHECK ((payment_status = ANY (ARRAY['not_paid'::text, 'pending_verification'::text, 'pending'::text, 'expired'::text, 'failed'::text, 'paid'::text, 'refunded'::text]))),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['new'::text, 'confirmed'::text, 'baking'::text, 'ready'::text, 'collected'::text, 'cancelled'::text])))
 );
 
@@ -419,6 +422,13 @@ ALTER TABLE ONLY public.order_items
 
 ALTER TABLE ONLY public.orders
     ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: orders_stripe_session_id_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX orders_stripe_session_id_key ON public.orders USING btree (stripe_session_id) WHERE (stripe_session_id IS NOT NULL);
 
 --
 -- Name: orders orders_reference_key; Type: CONSTRAINT; Schema: public; Owner: -
