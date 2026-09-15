@@ -282,6 +282,9 @@ CREATE TABLE public.orders (
     balance_cents integer DEFAULT 0 NOT NULL,
     delivery_postal_code text,
     delivery_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    stripe_session_id text,
+    stripe_payment_intent_id text,
+    paid_at timestamp with time zone,
     CONSTRAINT orders_payment_status_check CHECK ((payment_status = ANY (ARRAY['not_paid'::text, 'pending_verification'::text, 'pending'::text, 'expired'::text, 'failed'::text, 'paid'::text, 'refunded'::text]))),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['new'::text, 'confirmed'::text, 'baking'::text, 'ready'::text, 'collected'::text, 'cancelled'::text])))
 );
