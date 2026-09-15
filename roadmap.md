@@ -8,3 +8,6 @@
 - [x] Customer review artwork on the home page; real bank name and account number saved
 - [x] Deep build audit + penetration pass (anon/customer database probes, price-tampering tests, slip upload hardening)
 - [x] Self-hosting handover (Option 3): database structure/data export, storage + admin SQL, `.env.example`, `vercel.json`, portable Google Maps call, and step-by-step guide in `deploy/DEPLOYMENT.md`
+- [x] Deployment doc corrections (live URL + repo) and reusable prompts in `docs/deployment/`
+- [x] Stripe card payments: server-priced checkout session, signed webhook, confirmation page, admin card details
+- [ ] Save the Stripe secret key (and webhook secret) to switch the card option on — blocked on your Stripe account
