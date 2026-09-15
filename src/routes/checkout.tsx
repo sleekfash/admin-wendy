@@ -674,17 +674,23 @@ function CheckoutPage() {
               )}
               <button
                 type="submit"
-                disabled={busy || (form.fulfilment === "delivery" && !totals)}
+                disabled={busy || (form.fulfilment === "delivery" && !totals) || (method === "card" && !totals)}
                 className="mt-6 w-full rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy
-                  ? "Placing your order…"
-                  : method === "whatsapp"
-                    ? "Place order & open WhatsApp"
-                    : "Place order & submit slip"}
+                  ? method === "card"
+                    ? "Opening secure payment…"
+                    : "Placing your order…"
+                  : method === "card"
+                    ? `Pay ${totals ? formatMoney(totals.due_now_cents) : "by card"} securely`
+                    : method === "whatsapp"
+                      ? "Place order & open WhatsApp"
+                      : "Place order & submit slip"}
               </button>
               <p className="mt-3 text-xs text-muted-foreground">
-                Orders start as Not Paid until Wendy verifies payment.
+                {method === "card"
+                  ? "Card orders are marked paid automatically once Stripe confirms the charge."
+                  : "Orders start as Not Paid until Wendy verifies payment."}
               </p>
             </div>
           </aside>
