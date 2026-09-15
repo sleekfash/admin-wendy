@@ -89,6 +89,8 @@ Left sidebar → **Project Settings** → **API**. Keep this tab open, you need:
    | `SUPABASE_PROJECT_ID` | your project reference ID |
    | `SUPABASE_SERVICE_ROLE_KEY` | your service_role key (secret) |
    | `GOOGLE_MAPS_API_KEY` | only if you want distance-based delivery fees (see Part 5) |
+   | `STRIPE_SECRET_KEY` | only if you want card payments (see Part 6) |
+   | `STRIPE_WEBHOOK_SECRET` | only if you want card payments (see Part 6) |
 
 5. Click **Deploy** and wait a few minutes. You get a temporary address like
    `wendys-bakehouse.vercel.app`.
