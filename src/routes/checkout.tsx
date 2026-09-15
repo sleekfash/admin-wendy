@@ -184,7 +184,7 @@ function CheckoutPage() {
 
     setBusy(true);
     try {
-      const payload: PlaceOrderInput = {
+      const core = {
         customer_name: form.customer_name,
         phone: form.phone,
         email: form.email || undefined,
@@ -197,6 +197,25 @@ function CheckoutPage() {
         occasion: form.occasion || undefined,
         notes: form.notes || undefined,
         allergies: form.allergies || undefined,
+        items: items.map((i) => ({
+          slug: i.slug,
+          quantity: i.quantity,
+          options: i.options,
+          choices: i.choices ?? [],
+          notes: i.notes,
+        })),
+      };
+
+      if (method === "card") {
+        // The amount is worked out on the server; we only follow its redirect.
+        const session = await payByCard({ data: core });
+        clear();
+        window.location.assign(session.url);
+        return;
+      }
+
+      const payload: PlaceOrderInput = {
+        ...core,
         checkout_method: method,
         payer_name: method === "bank_transfer" ? form.payer_name : undefined,
         transfer_reference:
