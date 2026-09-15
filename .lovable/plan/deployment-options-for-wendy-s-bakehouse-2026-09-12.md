@@ -2,9 +2,11 @@
 
 ## Current state
 - The app is a full-stack TanStack Start project using Lovable Cloud (Supabase backend).
-- It is already published on Lovable at `https://discovery-bloom-kit.lovable.app`.
+- It is already published on Lovable at `https://admin-wendy.lovable.app/`.
+- The source code lives at `https://github.com/sleekfash/admin-wendy.git`.
 - It relies on server functions (`createServerFn`) for pricing, checkout, orders, admin, and storage.
 - The custom domain is with Namecheap.
+- Card payments run through Stripe, which needs a reliable public webhook address.
 
 ## Your priorities (confirmed)
 - Move the backend too, not just the frontend.

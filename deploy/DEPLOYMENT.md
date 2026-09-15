@@ -13,9 +13,13 @@ Total time: about an hour, most of it waiting.
 ## Part 1 — Get the code into GitHub
 
 The project is already connected to GitHub from inside Lovable
-(top right menu → GitHub → Connect). Do that first if it isn't connected yet,
-and note the repository name it creates. Everything after this reads from that
-repository.
+(top right menu → GitHub → Connect). Do that first if it isn't connected yet.
+
+Your repository: `https://github.com/sleekfash/admin-wendy.git`
+
+Everything after this reads from that repository. The site currently live on
+Lovable is `https://admin-wendy.lovable.app/` and it keeps working untouched
+until you switch the domain over at the very end.
 
 ---
 
