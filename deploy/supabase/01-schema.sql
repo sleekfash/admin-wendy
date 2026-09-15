@@ -423,6 +423,13 @@ ALTER TABLE ONLY public.order_items
 ALTER TABLE ONLY public.orders
     ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
 
+
+--
+-- Name: orders_stripe_session_id_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX orders_stripe_session_id_key ON public.orders USING btree (stripe_session_id) WHERE (stripe_session_id IS NOT NULL);
+
 --
 -- Name: orders orders_reference_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
