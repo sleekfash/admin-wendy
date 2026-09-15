@@ -136,6 +136,26 @@ your Vercel project, and add it as `GOOGLE_MAPS_API_KEY`.
 
 ---
 
+## Part 6 — Turn on card payments (optional)
+
+Card payments stay hidden until you add the two Stripe values, so you can do
+this whenever you're ready. Bank transfer and WhatsApp are unaffected.
+
+1. Sign up at https://stripe.com and stay in **Test mode** for now.
+2. **Developers** → **API keys** → copy the **Secret key** (`sk_test_...`) and add
+   it in Vercel as `STRIPE_SECRET_KEY`.
+3. **Developers** → **Webhooks** → **Add endpoint**:
+   - URL: `https://YOUR-SITE/api/public/stripe-webhook`
+   - Events: `checkout.session.completed` and `checkout.session.expired`
+4. Copy the endpoint's **Signing secret** (`whsec_...`) and add it in Vercel as
+   `STRIPE_WEBHOOK_SECRET`. Redeploy.
+5. Test with card `4242 4242 4242 4242`, any future expiry, any CVC. The order
+   should appear in `/admin` marked paid with the Stripe reference.
+6. When you're happy, repeat steps 2–4 with your **live** keys after Stripe
+   finishes verifying your business.
+
+Refunds are done in the Stripe dashboard; the admin console shows the reference.
+
 ## Afterwards
 
 - **Changing the site**: edit in Lovable as usual; each change pushes to GitHub
