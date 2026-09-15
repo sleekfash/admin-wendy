@@ -844,16 +844,16 @@ GRANT ALL ON TABLE public.delivery_zones TO service_role;
 -- Name: TABLE order_items; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.order_items TO anon;
-GRANT ALL ON TABLE public.order_items TO authenticated;
+-- Order items are only ever read/written by trusted server code.
+REVOKE ALL ON TABLE public.order_items FROM anon, authenticated;
 GRANT ALL ON TABLE public.order_items TO service_role;
 
 --
 -- Name: TABLE orders; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.orders TO anon;
-GRANT ALL ON TABLE public.orders TO authenticated;
+-- Orders are only ever read/written by trusted server code.
+REVOKE ALL ON TABLE public.orders FROM anon, authenticated;
 GRANT ALL ON TABLE public.orders TO service_role;
 
 --
@@ -892,8 +892,9 @@ GRANT ALL ON TABLE public.settings TO service_role;
 -- Name: TABLE user_roles; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.user_roles TO anon;
-GRANT ALL ON TABLE public.user_roles TO authenticated;
+-- Role assignments are never reachable from the browser; role checks go
+-- through the SECURITY DEFINER helpers is_admin()/is_staff().
+REVOKE ALL ON TABLE public.user_roles FROM anon, authenticated;
 GRANT ALL ON TABLE public.user_roles TO service_role;
 
 --
