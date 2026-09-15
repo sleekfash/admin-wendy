@@ -69,19 +69,27 @@ type Receipt = {
   reference: string;
   dueNowCents: number;
   hasQuoteItems: boolean;
-  method: "whatsapp" | "bank_transfer";
+  method: PayMethod;
   waLink: string;
 };
 
 function CheckoutPage() {
   const { items, dueNowCents, hasQuoteItems, clear } = useCart();
   const submitOrder = useServerFn(placeOrder);
+  const payByCard = useServerFn(startCardPayment);
+  const checkCard = useServerFn(cardPaymentsEnabled);
   const { data: catalog } = useQuery(catalogQueryOptions);
   const settings = catalog?.settings ?? FALLBACK_SETTINGS;
   const { data: bankData } = useQuery(bankDetailsQueryOptions(items.map((i) => i.slug)));
   const bank = bankData ?? FALLBACK_BANK_DETAILS;
+  const { data: cardState } = useQuery({
+    queryKey: ["card-payments-enabled"],
+    queryFn: () => checkCard({}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const cardEnabled = cardState?.enabled === true;
 
-  const [method, setMethod] = useState<"whatsapp" | "bank_transfer">("whatsapp");
+  const [method, setMethod] = useState<PayMethod>("whatsapp");
   const [busy, setBusy] = useState(false);
   const [slip, setSlip] = useState<File | null>(null);
   const [done, setDone] = useState<Receipt | null>(null);
