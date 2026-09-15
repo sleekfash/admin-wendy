@@ -28,5 +28,15 @@ create policy "admins delete product images"
   on storage.objects for delete to authenticated
   using (bucket_id = 'product-images' and public.is_admin());
 
--- Payment slips: no client-side access at all. Customers upload and admins view
--- them through the app's server code using the secret service key.
+-- Payment slips: customers upload through the app's server code using the
+-- secret service key — no client role may ever write here. Staff may read
+-- slips and only admins may remove them.
+drop policy if exists "staff read payment slips" on storage.objects;
+create policy "staff read payment slips"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'payment-slips' and public.is_staff());
+
+drop policy if exists "admins delete payment slips" on storage.objects;
+create policy "admins delete payment slips"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'payment-slips' and public.is_admin());
