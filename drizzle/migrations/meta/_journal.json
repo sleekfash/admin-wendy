@@ -29,6 +29,13 @@
       "when": 1789441214405,
       "tag": "0003_lock_down_orders_roles_and_slip_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789517967371,
+      "tag": "0004_move_role_helpers_out_of_api_schema",
+      "breakpoints": true
     }
   ]
 }
