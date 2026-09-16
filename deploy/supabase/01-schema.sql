@@ -813,17 +813,19 @@ GRANT ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) TO service
 -- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON FUNCTION public.is_admin() TO anon;
-GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
-GRANT ALL ON FUNCTION public.is_admin() TO service_role;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO service_role;
 
 --
 -- Name: FUNCTION is_staff(); Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON FUNCTION public.is_staff() TO anon;
-GRANT ALL ON FUNCTION public.is_staff() TO authenticated;
-GRANT ALL ON FUNCTION public.is_staff() TO service_role;
+REVOKE ALL ON FUNCTION public.is_staff() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_staff() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_staff() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_staff() TO service_role;
 
 --
 -- Name: FUNCTION sync_product_available(); Type: ACL; Schema: public; Owner: -
