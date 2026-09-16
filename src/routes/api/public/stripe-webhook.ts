@@ -48,11 +48,21 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
         // simply rewrites the same row with the same values.
         const { data: order } = await supabaseAdmin
           .from("orders")
-          .select("id, payment_status")
+          .select("id, payment_status, due_now_cents")
           .eq("stripe_session_id", session.id)
           .maybeSingle();
 
         if (!order) return new Response("unknown session", { status: 200 });
+
+        // Defense in depth: even a genuinely-signed Stripe event must match the
+        // amount our own pricing engine calculated for this order, in CAD. A
+        // mismatch is never marked paid — it stays pending for human review.
+        if (event.type === "checkout.session.completed") {
+          const amountOk =
+            session.amount_total === order.due_now_cents &&
+            (session.currency ?? "").toLowerCase() === "cad";
+          if (!amountOk) return new Response("amount mismatch", { status: 400 });
+        }
 
         if (event.type === "checkout.session.expired") {
           if (order.payment_status === "paid") return new Response("ok", { status: 200 });
