@@ -134,21 +134,22 @@ END;
 $$;
 
 --
--- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: -
+-- Role helpers. The SECURITY DEFINER versions live in the private schema so
+-- they are not reachable through the Data API; the public wrappers are
+-- SECURITY INVOKER and only callable by signed-in roles.
 --
 
-CREATE FUNCTION public.is_admin() RETURNS boolean
+CREATE SCHEMA IF NOT EXISTS private;
+GRANT USAGE ON SCHEMA private TO authenticated, service_role;
+
+CREATE FUNCTION private.is_admin() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin');
 $$;
 
---
--- Name: is_staff(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.is_staff() RETURNS boolean
+CREATE FUNCTION private.is_staff() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -157,6 +158,22 @@ CREATE FUNCTION public.is_staff() RETURNS boolean
     WHERE user_id = auth.uid() AND role IN ('admin','staff')
   );
 $$;
+
+REVOKE ALL ON FUNCTION private.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.is_staff() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.is_admin() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_staff() TO authenticated, service_role;
+
+CREATE FUNCTION public.is_admin() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY INVOKER
+    SET search_path TO 'private', 'public'
+    AS $$ SELECT private.is_admin(); $$;
+
+CREATE FUNCTION public.is_staff() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY INVOKER
+    SET search_path TO 'private', 'public'
+    AS $$ SELECT private.is_staff(); $$;
+
 
 --
 -- Name: sync_product_available(); Type: FUNCTION; Schema: public; Owner: -
@@ -727,13 +744,15 @@ CREATE POLICY "public can read option groups" ON public.product_option_groups FO
 -- Name: products public can read products; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "public can read products" ON public.products FOR SELECT TO authenticated, anon USING (((available = true) OR public.is_admin()));
+CREATE POLICY "anon can read available products" ON public.products FOR SELECT TO anon USING (available = true);
+CREATE POLICY "signed in can read products" ON public.products FOR SELECT TO authenticated USING (((available = true) OR private.is_admin()));
 
 --
--- Name: categories public can read visible categories; Type: POLICY; Schema: public; Owner: -
+-- Name: categories public read policies; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "public can read visible categories" ON public.categories FOR SELECT TO authenticated, anon USING (((visible = true) OR public.is_admin()));
+CREATE POLICY "anon can read visible categories" ON public.categories FOR SELECT TO anon USING (visible = true);
+CREATE POLICY "signed in can read categories" ON public.categories FOR SELECT TO authenticated USING (((visible = true) OR private.is_admin()));
 
 --
 -- Name: settings; Type: ROW SECURITY; Schema: public; Owner: -
@@ -796,17 +815,19 @@ GRANT ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) TO service
 -- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON FUNCTION public.is_admin() TO anon;
-GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
-GRANT ALL ON FUNCTION public.is_admin() TO service_role;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO service_role;
 
 --
 -- Name: FUNCTION is_staff(); Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON FUNCTION public.is_staff() TO anon;
-GRANT ALL ON FUNCTION public.is_staff() TO authenticated;
-GRANT ALL ON FUNCTION public.is_staff() TO service_role;
+REVOKE ALL ON FUNCTION public.is_staff() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_staff() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_staff() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_staff() TO service_role;
 
 --
 -- Name: FUNCTION sync_product_available(); Type: ACL; Schema: public; Owner: -
