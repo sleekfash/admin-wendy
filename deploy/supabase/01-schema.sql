@@ -134,21 +134,22 @@ END;
 $$;
 
 --
--- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: -
+-- Role helpers. The SECURITY DEFINER versions live in the private schema so
+-- they are not reachable through the Data API; the public wrappers are
+-- SECURITY INVOKER and only callable by signed-in roles.
 --
 
-CREATE FUNCTION public.is_admin() RETURNS boolean
+CREATE SCHEMA IF NOT EXISTS private;
+GRANT USAGE ON SCHEMA private TO authenticated, service_role;
+
+CREATE FUNCTION private.is_admin() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin');
 $$;
 
---
--- Name: is_staff(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.is_staff() RETURNS boolean
+CREATE FUNCTION private.is_staff() RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
@@ -157,6 +158,22 @@ CREATE FUNCTION public.is_staff() RETURNS boolean
     WHERE user_id = auth.uid() AND role IN ('admin','staff')
   );
 $$;
+
+REVOKE ALL ON FUNCTION private.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.is_staff() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.is_admin() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_staff() TO authenticated, service_role;
+
+CREATE FUNCTION public.is_admin() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY INVOKER
+    SET search_path TO 'private', 'public'
+    AS $$ SELECT private.is_admin(); $$;
+
+CREATE FUNCTION public.is_staff() RETURNS boolean
+    LANGUAGE sql STABLE SECURITY INVOKER
+    SET search_path TO 'private', 'public'
+    AS $$ SELECT private.is_staff(); $$;
+
 
 --
 -- Name: sync_product_available(); Type: FUNCTION; Schema: public; Owner: -
