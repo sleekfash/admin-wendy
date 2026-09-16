@@ -744,13 +744,15 @@ CREATE POLICY "public can read option groups" ON public.product_option_groups FO
 -- Name: products public can read products; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "public can read products" ON public.products FOR SELECT TO authenticated, anon USING (((available = true) OR public.is_admin()));
+CREATE POLICY "anon can read available products" ON public.products FOR SELECT TO anon USING (available = true);
+CREATE POLICY "signed in can read products" ON public.products FOR SELECT TO authenticated USING (((available = true) OR private.is_admin()));
 
 --
--- Name: categories public can read visible categories; Type: POLICY; Schema: public; Owner: -
+-- Name: categories public read policies; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "public can read visible categories" ON public.categories FOR SELECT TO authenticated, anon USING (((visible = true) OR public.is_admin()));
+CREATE POLICY "anon can read visible categories" ON public.categories FOR SELECT TO anon USING (visible = true);
+CREATE POLICY "signed in can read categories" ON public.categories FOR SELECT TO authenticated USING (((visible = true) OR private.is_admin()));
 
 --
 -- Name: settings; Type: ROW SECURITY; Schema: public; Owner: -
