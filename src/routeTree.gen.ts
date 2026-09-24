@@ -15,8 +15,8 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as ContactRouteImport } from './routes/contact'
 import { Route as OrderConfirmedRouteImport } from './routes/order-confirmed'
+import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as MenuIndexRouteImport } from './routes/menu.index'
@@ -59,14 +59,14 @@ const CheckoutRoute = CheckoutRouteImport.update({
   path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OrderConfirmedRoute = OrderConfirmedRouteImport.update({
   id: '/order-confirmed',
   path: '/order-confirmed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliciesRoute = PoliciesRouteImport.update({
+  id: '/policies',
+  path: '/policies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -142,8 +142,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/contact': typeof ContactRoute
   '/order-confirmed': typeof OrderConfirmedRoute
+  '/policies': typeof PoliciesRoute
   '/pricing': typeof PricingRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/menu/$slug': typeof MenuSlugRoute
@@ -163,8 +163,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/contact': typeof ContactRoute
   '/order-confirmed': typeof OrderConfirmedRoute
+  '/policies': typeof PoliciesRoute
   '/pricing': typeof PricingRoute
   '/menu/$slug': typeof MenuSlugRoute
   '/menu': typeof MenuIndexRoute
@@ -185,8 +185,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/contact': typeof ContactRoute
   '/order-confirmed': typeof OrderConfirmedRoute
+  '/policies': typeof PoliciesRoute
   '/pricing': typeof PricingRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/menu/$slug': typeof MenuSlugRoute
@@ -208,8 +208,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/checkout'
-    | '/contact'
     | '/order-confirmed'
+    | '/policies'
     | '/pricing'
     | '/admin'
     | '/menu/$slug'
@@ -229,8 +229,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/checkout'
-    | '/contact'
     | '/order-confirmed'
+    | '/policies'
     | '/pricing'
     | '/menu/$slug'
     | '/menu'
@@ -250,8 +250,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cart'
     | '/checkout'
-    | '/contact'
     | '/order-confirmed'
+    | '/policies'
     | '/pricing'
     | '/_authenticated/admin'
     | '/menu/$slug'
@@ -273,8 +273,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
-  ContactRoute: typeof ContactRoute
   OrderConfirmedRoute: typeof OrderConfirmedRoute
+  PoliciesRoute: typeof PoliciesRoute
   PricingRoute: typeof PricingRoute
   MenuSlugRoute: typeof MenuSlugRoute
   MenuIndexRoute: typeof MenuIndexRoute
@@ -326,18 +326,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/order-confirmed': {
       id: '/order-confirmed'
       path: '/order-confirmed'
       fullPath: '/order-confirmed'
       preLoaderRoute: typeof OrderConfirmedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/policies': {
+      id: '/policies'
+      path: '/policies'
+      fullPath: '/policies'
+      preLoaderRoute: typeof PoliciesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -466,8 +466,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
-  ContactRoute: ContactRoute,
   OrderConfirmedRoute: OrderConfirmedRoute,
+  PoliciesRoute: PoliciesRoute,
   PricingRoute: PricingRoute,
   MenuSlugRoute: MenuSlugRoute,
   MenuIndexRoute: MenuIndexRoute,

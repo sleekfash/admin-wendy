@@ -39,17 +39,31 @@ function OrderConfirmedPage() {
   });
 
   const paid = data?.found && data.payment_status === "paid";
+  const failed = data?.found && data.payment_status === "failed";
+  const refunded = data?.found && data.payment_status === "refunded";
   const waiting = !data || (data.found && data.payment_status === "pending");
 
   return (
     <>
       <PageHeader
         eyebrow={ref ? `Order ${ref}` : "Order"}
-        title={paid ? "Payment received. Thank you." : "Confirming your payment…"}
+        title={
+          paid
+            ? "Payment received. Thank you."
+            : failed
+              ? "Payment unsuccessful."
+              : refunded
+                ? "Payment refunded."
+                : "Confirming your payment…"
+        }
         lead={
           paid
             ? "Your order is in the book and Wendy has been notified."
-            : "This page updates itself as soon as your bank confirms the charge."
+            : failed
+              ? "Stripe could not complete the charge and nothing was taken. You can try again at checkout."
+              : refunded
+                ? "Your payment was returned. If that looks wrong, message Wendy on WhatsApp."
+                : "This page updates itself as soon as your bank confirms the charge."
         }
       />
       <Section>
@@ -59,8 +73,8 @@ function OrderConfirmedPage() {
               <h2 className="font-display text-xl">Paid {formatMoney(data.due_now_cents)}</h2>
               {data.balance_cents > 0 ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  That covers your deposit. The remaining {formatMoney(data.balance_cents)} is due
-                  before collection.
+                  That covers the amount due now. The remaining {formatMoney(data.balance_cents)} is
+                  due before pickup or delivery.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -106,8 +120,11 @@ function OrderConfirmedPage() {
           >
             Back to cakes &amp; treats
           </Link>
-          <Link to="/contact" className="rounded-sm border border-input px-5 py-3 text-sm font-semibold">
-            Contact Wendy
+          <Link
+            to="/policies"
+            className="rounded-sm border border-input px-5 py-3 text-sm font-semibold"
+          >
+            Policies &amp; contact
           </Link>
         </div>
       </Section>

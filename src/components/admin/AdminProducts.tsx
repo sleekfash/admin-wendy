@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, Search } from "lucide-react";
 import { adminDeleteProduct, adminListProducts, adminSaveProduct } from "@/lib/admin.functions";
+import { isCustomCakeProduct } from "@/lib/custom-cake-contract";
 import { formatMoney, imageSrc } from "@/lib/shop";
 import { AdminProductOptions } from "@/components/admin/AdminProductOptions";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ type Draft = {
   description: string;
   payment_rule: PaymentRule;
   price: string;
-  deposit: string;
+  deposit_percent: string;
   pack_size: string;
   pack_unit: string;
   price_note: string;
@@ -58,7 +59,7 @@ function toDraft(p?: ProductRow): Draft {
     description: p?.description ?? "",
     payment_rule: (p?.payment_rule as PaymentRule) ?? "full",
     price: p?.price_cents != null ? (p.price_cents / 100).toString() : "",
-    deposit: p?.deposit_cents != null ? (p.deposit_cents / 100).toString() : "",
+    deposit_percent: p?.deposit_percent != null ? String(p.deposit_percent) : "70",
     pack_size: p?.pack_size != null ? String(p.pack_size) : "",
     pack_unit: p?.pack_unit ?? "",
     price_note: p?.price_note ?? "",
@@ -116,7 +117,11 @@ export function AdminProducts() {
           description: d.description.trim(),
           payment_rule: d.payment_rule,
           price_cents: toCents(d.price),
-          deposit_cents: toCents(d.deposit),
+          deposit_cents: null,
+          deposit_percent:
+            d.payment_rule === "deposit" && d.deposit_percent.trim()
+              ? Number(d.deposit_percent)
+              : null,
           pack_size: d.pack_size.trim() ? Number(d.pack_size) : null,
           pack_unit: d.pack_unit.trim() || null,
           price_note: d.price_note.trim() || null,
@@ -219,7 +224,9 @@ export function AdminProducts() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {formatMoney(p.price_cents ?? 0)}
                 {p.payment_rule === "deposit"
-                  ? ` · ${formatMoney(p.deposit_cents ?? 0)} deposit`
+                  ? p.deposit_percent != null
+                    ? ` · ${p.deposit_percent}% deposit`
+                    : ` · ${formatMoney(p.deposit_cents ?? 0)} legacy deposit`
                   : ""}
                 {p.pack_size ? ` · ${p.pack_size} ${p.pack_unit ?? "pieces"} per pack` : ""}
               </p>
@@ -244,16 +251,20 @@ export function AdminProducts() {
                     Restore
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive"
-                  onClick={() => {
-                    if (confirm(`Delete ${p.name}? Archive is usually safer.`)) remove.mutate(p.id);
-                  }}
-                >
-                  Delete
-                </Button>
+                {!isCustomCakeProduct(p.id) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => {
+                      if (confirm(`Delete ${p.name}? Archive is usually safer.`)) {
+                        remove.mutate(p.id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -326,6 +337,7 @@ export function AdminProducts() {
                 <Field label="Payment">
                   <Select
                     value={draft.payment_rule}
+                    disabled={isCustomCakeProduct(draft.id ?? "")}
                     onValueChange={(v) => setDraft({ ...draft, payment_rule: v as PaymentRule })}
                   >
                     <SelectTrigger>
@@ -337,6 +349,12 @@ export function AdminProducts() {
                     </SelectContent>
                   </Select>
                 </Field>
+                {isCustomCakeProduct(draft.id ?? "") && (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    This product always takes a percentage deposit. Its minimum and tier rules
+                    remain enforced when the deposit percentage changes.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Price (CAD)">
                     <Input
@@ -346,12 +364,15 @@ export function AdminProducts() {
                       onChange={(e) => setDraft({ ...draft, price: e.target.value })}
                     />
                   </Field>
-                  <Field label="Deposit (CAD)">
+                  <Field label="Deposit (%)">
                     <Input
-                      inputMode="decimal"
+                      type="number"
+                      min={1}
+                      max={100}
+                      required={draft.payment_rule === "deposit"}
                       disabled={draft.payment_rule !== "deposit"}
-                      value={draft.deposit}
-                      onChange={(e) => setDraft({ ...draft, deposit: e.target.value })}
+                      value={draft.deposit_percent}
+                      onChange={(e) => setDraft({ ...draft, deposit_percent: e.target.value })}
                     />
                   </Field>
                 </div>

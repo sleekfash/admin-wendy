@@ -5,18 +5,15 @@ import { Lockup } from "./Brand";
 import { BUSINESS } from "@/data/catalog";
 import { CartDrawer } from "@/components/site/CartDrawer";
 
-
-
 const NAV = [
-  { to: "/menu", label: "Cakes & treats" },
-  { to: "/pricing", label: "Pricing" },
+  { to: "/menu", label: "Cakes & treats", category: undefined },
+  { to: "/menu", label: "Pastries", category: "pastries" },
+  { to: "/pricing", label: "Menu & pricing" },
   { to: "/about", label: "Our story" },
-  { to: "/contact", label: "Contact" },
 ] as const;
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-
 
   return (
     <>
@@ -33,10 +30,15 @@ export function SiteHeader() {
           <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
             {NAV.map((item) => (
               <Link
-                key={item.to}
+                key={`${item.to}-${item.label}`}
                 to={item.to}
+                {...(item.to === "/menu" ? { search: { category: item.category } } : {})}
                 className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
                 activeProps={{ className: "text-primary" }}
+                activeOptions={{
+                  exact: true,
+                  ...(item.to === "/menu" ? { includeSearch: true, explicitUndefined: true } : {}),
+                }}
               >
                 {item.label}
               </Link>
@@ -62,7 +64,6 @@ export function SiteHeader() {
               Menu
             </button>
           </div>
-
         </div>
       </header>
 
@@ -82,8 +83,9 @@ export function SiteHeader() {
           <nav aria-label="Mobile" className="mt-10 flex flex-col gap-6">
             {NAV.map((item) => (
               <Link
-                key={item.to}
+                key={`${item.to}-${item.label}`}
                 to={item.to}
+                {...(item.to === "/menu" ? { search: { category: item.category } } : {})}
                 onClick={() => setOpen(false)}
                 className="font-display text-3xl text-cocoa-foreground"
               >

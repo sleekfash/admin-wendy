@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CtaBand, PageHeader, ProductCard, ProductCardSkeleton, Section } from "@/components/site/Bits";
+import {
+  CtaBand,
+  PageHeader,
+  ProductCard,
+  ProductCardSkeleton,
+  Section,
+} from "@/components/site/Bits";
 import { catalogQueryOptions } from "@/lib/shop";
 
 const TITLE = "Cakes & treats — Wendy's Bakehouse, Toronto";
@@ -87,8 +93,8 @@ function MenuPage() {
         )}
 
         <p className="mt-10 max-w-[70ch] text-sm text-muted-foreground">
-          Prices shown in CAD. Larger tiers and bespoke sculpted work can be arranged on
-          enquiry — ask and you will get a number the same day, not a runaround.
+          Prices shown in CAD. Custom cake sizes, tiers and design extras are priced on the product
+          page. Fondant figures and sculpted models are not offered.
         </p>
       </Section>
 

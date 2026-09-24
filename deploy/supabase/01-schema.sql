@@ -85,7 +85,8 @@ BEGIN
     subtotal_cents, due_now_cents, has_quote_items, status,
     checkout_method, payer_name, transfer_reference, transfer_date,
     payment_provider, payment_status,
-    delivery_fee_cents, total_cents, balance_cents, delivery_postal_code, delivery_snapshot
+    delivery_fee_cents, total_cents, balance_cents, delivery_postal_code, delivery_snapshot,
+    deposit_percent
   )
   SELECT
     o.reference, o.customer_name, o.email, o.phone, o.pickup_date, o.pickup_window,
@@ -94,7 +95,7 @@ BEGIN
     o.checkout_method, o.payer_name, o.transfer_reference, o.transfer_date,
     o.payment_provider, o.payment_status,
     coalesce(o.delivery_fee_cents, 0), coalesce(o.total_cents, 0), coalesce(o.balance_cents, 0),
-    o.delivery_postal_code, coalesce(o.delivery_snapshot, '{}'::jsonb)
+    o.delivery_postal_code, coalesce(o.delivery_snapshot, '{}'::jsonb), o.deposit_percent
   FROM jsonb_to_record(_order) AS o(
     reference text, customer_name text, email text, phone text,
     pickup_date date, pickup_window text, fulfilment text, delivery_area text,
@@ -103,7 +104,7 @@ BEGIN
     status text, checkout_method text, payer_name text, transfer_reference text,
     transfer_date date, payment_provider text, payment_status text,
     delivery_fee_cents integer, total_cents integer, balance_cents integer,
-    delivery_postal_code text, delivery_snapshot jsonb
+    delivery_postal_code text, delivery_snapshot jsonb, deposit_percent integer
   )
   RETURNING public.orders.id, public.orders.reference INTO new_id, new_ref;
 
@@ -111,7 +112,7 @@ BEGIN
     order_id, product_id, product_slug, name, quantity,
     unit_price_cents, deposit_cents, pricing_mode, options, notes,
     options_snapshot, base_price_cents, options_total_cents,
-    line_total_cents, line_due_now_cents, payment_rule, pack_size
+    line_total_cents, line_due_now_cents, payment_rule, pack_size, deposit_percent
   )
   SELECT
     new_id, i.product_id, i.product_slug, i.name, i.quantity,
@@ -119,14 +120,15 @@ BEGIN
     coalesce(i.options, '{}'::jsonb), i.notes,
     coalesce(i.options_snapshot, '[]'::jsonb), coalesce(i.base_price_cents, 0),
     coalesce(i.options_total_cents, 0), coalesce(i.line_total_cents, 0),
-    coalesce(i.line_due_now_cents, 0), coalesce(i.payment_rule, 'full')::payment_rule, i.pack_size
+    coalesce(i.line_due_now_cents, 0), coalesce(i.payment_rule, 'full')::payment_rule,
+    i.pack_size, i.deposit_percent
   FROM jsonb_to_recordset(_items) AS i(
     product_id uuid, product_slug text, name text, quantity integer,
     unit_price_cents integer, deposit_cents integer, pricing_mode text,
     options jsonb, notes text, options_snapshot jsonb,
     base_price_cents integer, options_total_cents integer,
     line_total_cents integer, line_due_now_cents integer,
-    payment_rule text, pack_size integer
+    payment_rule text, pack_size integer, deposit_percent integer
   );
 
   RETURN QUERY SELECT new_id, new_ref;
@@ -134,23 +136,22 @@ END;
 $$;
 
 --
--- Role helpers. The SECURITY DEFINER versions live in the private schema so
--- they are not reachable through the Data API; the public wrappers are
--- SECURITY INVOKER and only callable by signed-in roles.
+-- Name: is_admin(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE SCHEMA IF NOT EXISTS private;
-GRANT USAGE ON SCHEMA private TO authenticated, service_role;
-
-CREATE FUNCTION private.is_admin() RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
+CREATE FUNCTION public.is_admin() RETURNS boolean
+    LANGUAGE sql STABLE
     SET search_path TO 'public'
     AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin');
 $$;
 
-CREATE FUNCTION private.is_staff() RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
+--
+-- Name: is_staff(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.is_staff() RETURNS boolean
+    LANGUAGE sql STABLE
     SET search_path TO 'public'
     AS $$
   SELECT EXISTS (
@@ -158,22 +159,6 @@ CREATE FUNCTION private.is_staff() RETURNS boolean
     WHERE user_id = auth.uid() AND role IN ('admin','staff')
   );
 $$;
-
-REVOKE ALL ON FUNCTION private.is_admin() FROM PUBLIC;
-REVOKE ALL ON FUNCTION private.is_staff() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION private.is_admin() TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION private.is_staff() TO authenticated, service_role;
-
-CREATE FUNCTION public.is_admin() RETURNS boolean
-    LANGUAGE sql STABLE SECURITY INVOKER
-    SET search_path TO 'private', 'public'
-    AS $$ SELECT private.is_admin(); $$;
-
-CREATE FUNCTION public.is_staff() RETURNS boolean
-    LANGUAGE sql STABLE SECURITY INVOKER
-    SET search_path TO 'private', 'public'
-    AS $$ SELECT private.is_staff(); $$;
-
 
 --
 -- Name: sync_product_available(); Type: FUNCTION; Schema: public; Owner: -
@@ -259,7 +244,9 @@ CREATE TABLE public.order_items (
     line_total_cents integer DEFAULT 0 NOT NULL,
     line_due_now_cents integer DEFAULT 0 NOT NULL,
     payment_rule public.payment_rule DEFAULT 'full'::public.payment_rule NOT NULL,
-    pack_size integer
+    pack_size integer,
+    deposit_percent integer,
+    CONSTRAINT order_items_deposit_percent_valid CHECK (((deposit_percent IS NULL) OR ((deposit_percent >= 1) AND (deposit_percent <= 100))))
 );
 
 --
@@ -299,9 +286,11 @@ CREATE TABLE public.orders (
     balance_cents integer DEFAULT 0 NOT NULL,
     delivery_postal_code text,
     delivery_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deposit_percent integer,
     stripe_session_id text,
     stripe_payment_intent_id text,
     paid_at timestamp with time zone,
+    CONSTRAINT orders_deposit_percent_valid CHECK (((deposit_percent IS NULL) OR ((deposit_percent >= 1) AND (deposit_percent <= 100)))),
     CONSTRAINT orders_payment_status_check CHECK ((payment_status = ANY (ARRAY['not_paid'::text, 'pending_verification'::text, 'pending'::text, 'expired'::text, 'failed'::text, 'paid'::text, 'refunded'::text]))),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['new'::text, 'confirmed'::text, 'baking'::text, 'ready'::text, 'collected'::text, 'cancelled'::text])))
 );
@@ -332,6 +321,7 @@ CREATE TABLE public.product_option_groups (
     key text NOT NULL,
     label text NOT NULL,
     required boolean DEFAULT false NOT NULL,
+    allow_multiple boolean DEFAULT false NOT NULL,
     available boolean DEFAULT true NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -366,10 +356,12 @@ CREATE TABLE public.products (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     status text DEFAULT 'available'::text NOT NULL,
     payment_rule public.payment_rule DEFAULT 'full'::public.payment_rule NOT NULL,
+    deposit_percent integer,
     pack_size integer,
     pack_unit text,
     CONSTRAINT products_deposit_non_negative CHECK (((deposit_cents IS NULL) OR (deposit_cents >= 0))),
-    CONSTRAINT products_deposit_within_price CHECK (((payment_rule <> 'deposit'::public.payment_rule) OR ((price_cents IS NOT NULL) AND (deposit_cents IS NOT NULL) AND (deposit_cents <= price_cents)))),
+    CONSTRAINT products_deposit_percent_valid CHECK (((deposit_percent IS NULL) OR ((deposit_percent >= 1) AND (deposit_percent <= 100)))),
+    CONSTRAINT products_deposit_within_price CHECK (((payment_rule <> 'deposit'::public.payment_rule) OR ((price_cents IS NOT NULL) AND ((((deposit_percent IS NOT NULL) AND (deposit_percent >= 1) AND (deposit_percent <= 100))) OR ((deposit_cents IS NOT NULL) AND (deposit_cents <= price_cents)))))),
     CONSTRAINT products_pack_size_positive CHECK (((pack_size IS NULL) OR (pack_size > 0))),
     CONSTRAINT products_price_non_negative CHECK (((price_cents IS NULL) OR (price_cents >= 0))),
     CONSTRAINT products_status_check CHECK ((status = ANY (ARRAY['available'::text, 'unavailable'::text, 'archived'::text])))
@@ -440,19 +432,15 @@ ALTER TABLE ONLY public.order_items
 ALTER TABLE ONLY public.orders
     ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
 
-
---
--- Name: orders_stripe_session_id_key; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX orders_stripe_session_id_key ON public.orders USING btree (stripe_session_id) WHERE (stripe_session_id IS NOT NULL);
-
 --
 -- Name: orders orders_reference_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.orders
     ADD CONSTRAINT orders_reference_key UNIQUE (reference);
+
+CREATE UNIQUE INDEX orders_stripe_session_id_key ON public.orders USING btree (stripe_session_id)
+    WHERE (stripe_session_id IS NOT NULL);
 
 --
 -- Name: product_option_choices product_option_choices_group_id_key_key; Type: CONSTRAINT; Schema: public; Owner: -
@@ -663,10 +651,10 @@ CREATE POLICY "admins manage option groups" ON public.product_option_groups TO a
 CREATE POLICY "admins manage order items" ON public.order_items TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 --
--- Name: orders admins manage orders; Type: POLICY; Schema: public; Owner: -
+-- Name: orders admins read orders; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "admins manage orders" ON public.orders TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "admins read orders" ON public.orders FOR SELECT TO authenticated USING (public.is_admin());
 
 --
 -- Name: products admins manage products; Type: POLICY; Schema: public; Owner: -
@@ -744,15 +732,13 @@ CREATE POLICY "public can read option groups" ON public.product_option_groups FO
 -- Name: products public can read products; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "anon can read available products" ON public.products FOR SELECT TO anon USING (available = true);
-CREATE POLICY "signed in can read products" ON public.products FOR SELECT TO authenticated USING (((available = true) OR private.is_admin()));
+CREATE POLICY "public can read products" ON public.products FOR SELECT TO authenticated, anon USING (((available = true) OR public.is_admin()));
 
 --
--- Name: categories public read policies; Type: POLICY; Schema: public; Owner: -
+-- Name: categories public can read visible categories; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "anon can read visible categories" ON public.categories FOR SELECT TO anon USING (visible = true);
-CREATE POLICY "signed in can read categories" ON public.categories FOR SELECT TO authenticated USING (((visible = true) OR private.is_admin()));
+CREATE POLICY "public can read visible categories" ON public.categories FOR SELECT TO authenticated, anon USING (((visible = true) OR public.is_admin()));
 
 --
 -- Name: settings; Type: ROW SECURITY; Schema: public; Owner: -
@@ -785,12 +771,6 @@ CREATE POLICY "staff read orders" ON public.orders FOR SELECT TO authenticated U
 CREATE POLICY "staff read products" ON public.products FOR SELECT TO authenticated USING (public.is_staff());
 
 --
--- Name: orders staff update orders; Type: POLICY; Schema: public; Owner: -
---
-
-CREATE POLICY "staff update orders" ON public.orders FOR UPDATE TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
-
---
 -- Name: user_roles; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -809,25 +789,25 @@ GRANT USAGE ON SCHEMA public TO service_role;
 --
 
 REVOKE ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) FROM authenticated;
 GRANT ALL ON FUNCTION public.create_order(_order jsonb, _items jsonb) TO service_role;
 
 --
 -- Name: FUNCTION is_admin(); Type: ACL; Schema: public; Owner: -
 --
 
-REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
-GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_admin() TO service_role;
+GRANT ALL ON FUNCTION public.is_admin() TO anon;
+GRANT ALL ON FUNCTION public.is_admin() TO authenticated;
+GRANT ALL ON FUNCTION public.is_admin() TO service_role;
 
 --
 -- Name: FUNCTION is_staff(); Type: ACL; Schema: public; Owner: -
 --
 
-REVOKE ALL ON FUNCTION public.is_staff() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_staff() FROM anon;
-GRANT EXECUTE ON FUNCTION public.is_staff() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.is_staff() TO service_role;
+GRANT ALL ON FUNCTION public.is_staff() TO anon;
+GRANT ALL ON FUNCTION public.is_staff() TO authenticated;
+GRANT ALL ON FUNCTION public.is_staff() TO service_role;
 
 --
 -- Name: FUNCTION sync_product_available(); Type: ACL; Schema: public; Owner: -
@@ -849,6 +829,16 @@ GRANT ALL ON FUNCTION public.update_updated_at_column() TO service_role;
 -- Name: TABLE categories; Type: ACL; Schema: public; Owner: -
 --
 
+-- Supabase may apply default grants to new tables. Remove browser write access
+-- explicitly before granting the public catalogue and staff read paths below.
+REVOKE ALL ON TABLE
+    public.orders,
+    public.order_items,
+    public.products,
+    public.product_option_groups,
+    public.product_option_choices
+FROM anon, authenticated;
+
 GRANT ALL ON TABLE public.categories TO anon;
 GRANT ALL ON TABLE public.categories TO authenticated;
 GRANT ALL ON TABLE public.categories TO service_role;
@@ -865,40 +855,38 @@ GRANT ALL ON TABLE public.delivery_zones TO service_role;
 -- Name: TABLE order_items; Type: ACL; Schema: public; Owner: -
 --
 
--- Order items are only ever read/written by trusted server code.
-REVOKE ALL ON TABLE public.order_items FROM anon, authenticated;
+GRANT SELECT ON TABLE public.order_items TO authenticated;
 GRANT ALL ON TABLE public.order_items TO service_role;
 
 --
 -- Name: TABLE orders; Type: ACL; Schema: public; Owner: -
 --
 
--- Orders are only ever read/written by trusted server code.
-REVOKE ALL ON TABLE public.orders FROM anon, authenticated;
+GRANT SELECT ON TABLE public.orders TO authenticated;
 GRANT ALL ON TABLE public.orders TO service_role;
 
 --
 -- Name: TABLE product_option_choices; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.product_option_choices TO anon;
-GRANT ALL ON TABLE public.product_option_choices TO authenticated;
+GRANT SELECT ON TABLE public.product_option_choices TO anon;
+GRANT SELECT ON TABLE public.product_option_choices TO authenticated;
 GRANT ALL ON TABLE public.product_option_choices TO service_role;
 
 --
 -- Name: TABLE product_option_groups; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.product_option_groups TO anon;
-GRANT ALL ON TABLE public.product_option_groups TO authenticated;
+GRANT SELECT ON TABLE public.product_option_groups TO anon;
+GRANT SELECT ON TABLE public.product_option_groups TO authenticated;
 GRANT ALL ON TABLE public.product_option_groups TO service_role;
 
 --
 -- Name: TABLE products; Type: ACL; Schema: public; Owner: -
 --
 
-GRANT ALL ON TABLE public.products TO anon;
-GRANT ALL ON TABLE public.products TO authenticated;
+GRANT SELECT ON TABLE public.products TO anon;
+GRANT SELECT ON TABLE public.products TO authenticated;
 GRANT ALL ON TABLE public.products TO service_role;
 
 --
@@ -913,9 +901,8 @@ GRANT ALL ON TABLE public.settings TO service_role;
 -- Name: TABLE user_roles; Type: ACL; Schema: public; Owner: -
 --
 
--- Role assignments are never reachable from the browser; role checks go
--- through the SECURITY DEFINER helpers is_admin()/is_staff().
-REVOKE ALL ON TABLE public.user_roles FROM anon, authenticated;
+GRANT ALL ON TABLE public.user_roles TO anon;
+GRANT ALL ON TABLE public.user_roles TO authenticated;
 GRANT ALL ON TABLE public.user_roles TO service_role;
 
 --
@@ -945,5 +932,3 @@ GRANT ALL ON TABLE public.user_roles TO service_role;
 --
 -- PostgreSQL database dump complete
 --
-
-

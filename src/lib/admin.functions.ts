@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { AppDatabase } from "@/lib/database.types";
 import { z } from "zod";
 
 type Ctx = { supabase: unknown; userId: string };
@@ -30,7 +32,7 @@ async function assertAdmin(context: Ctx) {
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  return supabaseAdmin as unknown as SupabaseClient<AppDatabase>;
 }
 
 import {
@@ -39,10 +41,15 @@ import {
   nextOrderStatuses,
   nextPaymentStatuses,
 } from "@/lib/order-status";
+import {
+  customCakeRuleGroup,
+  isCustomCakeCategory,
+  isCustomCakeOptionGroup,
+  isCustomCakeProduct,
+  isCustomCakeRuleGroup,
+} from "@/lib/custom-cake-contract";
 
 export { ORDER_STATUSES, PAYMENT_STATUSES, nextOrderStatuses, nextPaymentStatuses };
-
-
 
 /** Who am I, as far as the server is concerned. */
 export const adminWhoAmI = createServerFn({ method: "GET" })
@@ -163,19 +170,29 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
 
     const { data: current, error: readError } = await db
       .from("orders")
-      .select("status, payment_status")
+      .select("status, payment_status, payment_provider, stripe_session_id")
       .eq("id", data.id)
       .single();
     if (readError || !current) throw new Error("That order no longer exists.");
 
     const patch: { status?: string; payment_status?: string } = {};
+    const stripeManaged =
+      current.payment_provider === "stripe" || current.stripe_session_id != null;
     if (data.status && data.status !== current.status) {
+      if (stripeManaged && current.payment_status === "pending") {
+        throw new Error(
+          "Wait for Stripe to finish or expire this payment before changing the order.",
+        );
+      }
       if (!nextOrderStatuses(current.status).includes(data.status)) {
         throw new Error(`An order cannot go from ${current.status} to ${data.status}.`);
       }
       patch.status = data.status;
     }
     if (data.payment_status && data.payment_status !== current.payment_status) {
+      if (stripeManaged) {
+        throw new Error("Stripe payment status is updated automatically by its webhook.");
+      }
       if (!nextPaymentStatuses(current.payment_status).includes(data.payment_status)) {
         throw new Error(
           `Payment cannot go from ${current.payment_status} to ${data.payment_status}.`,
@@ -185,8 +202,16 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
     }
     if (Object.keys(patch).length === 0) return { ok: true };
 
-    const { error } = await db.from("orders").update(patch).eq("id", data.id);
+    const { data: updated, error } = await db
+      .from("orders")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("status", current.status)
+      .eq("payment_status", current.payment_status)
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!updated) throw new Error("That order changed. Refresh it before trying again.");
     return { ok: true };
   });
 
@@ -225,6 +250,7 @@ const productSchema = z
     payment_rule: z.enum(["full", "deposit"]),
     price_cents: z.number().int().min(0).max(10_000_00).nullable(),
     deposit_cents: z.number().int().min(0).max(10_000_00).nullable(),
+    deposit_percent: z.number().int().min(1).max(100).nullable(),
     pack_size: z.number().int().min(1).max(1000).nullable(),
     pack_unit: z.string().trim().max(40).nullable(),
     price_note: z.string().trim().max(200).nullable(),
@@ -245,30 +271,18 @@ const productSchema = z
       return;
     }
     if (v.payment_rule === "deposit") {
-      if (v.deposit_cents == null) {
+      if (v.deposit_percent == null) {
         ctx.addIssue({
           code: "custom",
-          message: "A deposit product needs a deposit amount.",
-          path: ["deposit_cents"],
-        });
-      } else if (v.deposit_cents > v.price_cents) {
-        ctx.addIssue({
-          code: "custom",
-          message: "The deposit cannot be larger than the price.",
-          path: ["deposit_cents"],
-        });
-      } else if (v.deposit_cents <= 0) {
-        ctx.addIssue({
-          code: "custom",
-          message: "The deposit must be more than zero.",
-          path: ["deposit_cents"],
+          message: "A custom-cake deposit needs a percentage.",
+          path: ["deposit_percent"],
         });
       }
     }
     if (v.pack_size != null && !v.pack_unit) {
       ctx.addIssue({
         code: "custom",
-        message: "Say what the pack contains, for example \"pies\".",
+        message: 'Say what the pack contains, for example "pies".',
         path: ["pack_unit"],
       });
     }
@@ -279,6 +293,17 @@ export const adminSaveProduct = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => productSchema.parse(data))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
+    const isCanonicalCake = data.id ? isCustomCakeProduct(data.id) : false;
+    if (isCanonicalCake) {
+      if (data.payment_rule !== "deposit") {
+        throw new Error("The custom celebration cake must use a percentage deposit.");
+      }
+      if (!data.category_id || !isCustomCakeCategory(data.category_id)) {
+        throw new Error("The custom celebration cake must stay in the Custom cakes collection.");
+      }
+    } else if (data.category_id && isCustomCakeCategory(data.category_id)) {
+      throw new Error("Only the custom celebration cake can live in the Custom cakes collection.");
+    }
     const db = await admin();
 
     const row = {
@@ -290,9 +315,12 @@ export const adminSaveProduct = createServerFn({ method: "POST" })
       payment_rule: data.payment_rule,
       pricing_mode: (data.payment_rule === "deposit" ? "deposit" : "fixed") as "fixed" | "deposit",
       price_cents: data.price_cents,
-      deposit_cents: data.payment_rule === "deposit" ? data.deposit_cents : null,
+      deposit_cents: null,
+      deposit_percent: data.payment_rule === "deposit" ? data.deposit_percent : null,
       price_band: null,
       price_note: data.price_note,
+      pack_size: data.pack_size,
+      pack_unit: data.pack_unit,
       lead_time: data.lead_time,
       serves: data.serves,
       includes: data.includes,
@@ -320,6 +348,9 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if (isCustomCakeProduct(data.id)) {
+      throw new Error("The core custom cake cannot be deleted. Archive it instead.");
+    }
     const db = await admin();
 
     const { count } = await db
@@ -450,8 +481,13 @@ export const adminListOptions = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const ids = (groups ?? []).map((g) => g.id);
     const choices = ids.length
-      ? (await db.from("product_option_choices").select("*").in("group_id", ids).order("sort_order"))
-          .data ?? []
+      ? ((
+          await db
+            .from("product_option_choices")
+            .select("*")
+            .in("group_id", ids)
+            .order("sort_order")
+        ).data ?? [])
       : [];
     return { groups: groups ?? [], choices };
   });
@@ -473,6 +509,7 @@ export const adminSaveOptionGroup = createServerFn({ method: "POST" })
         key: keyRule,
         label: z.string().trim().min(1).max(120),
         required: z.boolean(),
+        allow_multiple: z.boolean(),
         available: z.boolean(),
         sort_order: z.number().int().min(0).max(999),
       })
@@ -483,9 +520,43 @@ export const adminSaveOptionGroup = createServerFn({ method: "POST" })
     const db = await admin();
     const { id, ...row } = data;
     if (id) {
-      const { error } = await db.from("product_option_groups").update(row).eq("id", id);
+      const { data: current, error: readError } = await db
+        .from("product_option_groups")
+        .select("product_id, key")
+        .eq("id", id)
+        .single();
+      if (readError || !current) throw new Error("That option group no longer exists.");
+      if (current.product_id !== data.product_id || current.key !== data.key) {
+        throw new Error("Saved option identifiers cannot be changed.");
+      }
+
+      const rule = customCakeRuleGroup(id);
+      if (
+        rule &&
+        (!isCustomCakeProduct(current.product_id) ||
+          data.key !== rule.key ||
+          data.required !== rule.required ||
+          data.allow_multiple !== rule.allowMultiple ||
+          !data.available)
+      ) {
+        throw new Error("Core cake-pricing rules cannot be hidden or restructured.");
+      }
+
+      const { error } = await db
+        .from("product_option_groups")
+        .update({
+          label: row.label,
+          required: row.required,
+          allow_multiple: row.allow_multiple,
+          available: row.available,
+          sort_order: row.sort_order,
+        })
+        .eq("id", id);
       if (error) throw new Error(error.message);
       return { ok: true, id };
+    }
+    if (isCustomCakeProduct(data.product_id)) {
+      throw new Error("Custom-cake option groups are managed in the pricing configuration.");
     }
     const { data: created, error } = await db
       .from("product_option_groups")
@@ -502,7 +573,20 @@ export const adminDeleteOptionGroup = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertStaff(context);
     const db = await admin();
-    await db.from("product_option_choices").delete().eq("group_id", data.id);
+    const { data: current, error: readError } = await db
+      .from("product_option_groups")
+      .select("product_id")
+      .eq("id", data.id)
+      .single();
+    if (readError || !current) throw new Error("That option group no longer exists.");
+    if (isCustomCakeProduct(current.product_id)) {
+      throw new Error("Custom-cake option groups cannot be deleted.");
+    }
+    const { error: choicesError } = await db
+      .from("product_option_choices")
+      .delete()
+      .eq("group_id", data.id);
+    if (choicesError) throw new Error(choicesError.message);
     const { error } = await db.from("product_option_groups").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -528,9 +612,36 @@ export const adminSaveOptionChoice = createServerFn({ method: "POST" })
     const db = await admin();
     const { id, ...row } = data;
     if (id) {
-      const { error } = await db.from("product_option_choices").update(row).eq("id", id);
+      const { data: current, error: readError } = await db
+        .from("product_option_choices")
+        .select("group_id, key")
+        .eq("id", id)
+        .single();
+      if (readError || !current) throw new Error("That option choice no longer exists.");
+      if (current.group_id !== data.group_id || current.key !== data.key) {
+        throw new Error("Saved option identifiers cannot be changed.");
+      }
+
+      const { error } = await db
+        .from("product_option_choices")
+        .update({
+          label: row.label,
+          price_delta_cents: row.price_delta_cents,
+          available: row.available,
+          sort_order: row.sort_order,
+        })
+        .eq("id", id);
       if (error) throw new Error(error.message);
       return { ok: true, id };
+    }
+    const { data: group, error: groupError } = await db
+      .from("product_option_groups")
+      .select("product_id")
+      .eq("id", data.group_id)
+      .single();
+    if (groupError || !group) throw new Error("That option group no longer exists.");
+    if (isCustomCakeProduct(group.product_id)) {
+      throw new Error("Custom-cake choices are managed in the pricing configuration.");
     }
     const { data: created, error } = await db
       .from("product_option_choices")
@@ -547,6 +658,15 @@ export const adminDeleteOptionChoice = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertStaff(context);
     const db = await admin();
+    const { data: current, error: readError } = await db
+      .from("product_option_choices")
+      .select("group_id")
+      .eq("id", data.id)
+      .single();
+    if (readError || !current) throw new Error("That option choice no longer exists.");
+    if (isCustomCakeOptionGroup(current.group_id)) {
+      throw new Error("Custom-cake choices cannot be deleted.");
+    }
     const { error } = await db.from("product_option_choices").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

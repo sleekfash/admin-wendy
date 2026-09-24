@@ -10,12 +10,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { useCart, lineDueCents } from "@/lib/cart";
+import { useCart } from "@/lib/cart";
 import { formatMoney, imageSrc } from "@/lib/shop";
 
 export function CartDrawer({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
-  const { items, count, remove, setQuantity, dueNowCents } = useCart();
+  const { items, count, remove, setQuantity, quote, isPricing, pricingError } = useCart();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -39,7 +39,9 @@ export function CartDrawer({ className = "" }: { className?: string }) {
         <SheetHeader className="border-b border-border">
           <SheetTitle className="font-display text-2xl">Your basket</SheetTitle>
           <SheetDescription>
-            {count === 0 ? "Nothing here yet." : `${count} item${count === 1 ? "" : "s"} ready to order.`}
+            {count === 0
+              ? "Nothing here yet."
+              : `${count} item${count === 1 ? "" : "s"} ready to order.`}
           </SheetDescription>
         </SheetHeader>
 
@@ -58,67 +60,95 @@ export function CartDrawer({ className = "" }: { className?: string }) {
             </div>
           ) : (
             <ul className="space-y-4">
-              {items.map((item, i) => (
-                <li key={`${item.slug}-${i}`} className="flex gap-3 rounded-[1rem] border border-border p-3">
-                  <img
-                    src={imageSrc(item)}
-                    alt=""
-                    className="h-16 w-16 shrink-0 rounded-[0.75rem] object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-base">{item.name}</p>
-                    {Object.entries(item.options).length > 0 && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {Object.entries(item.options)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join(" · ")}
-                      </p>
-                    )}
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="inline-flex items-center rounded-sm border border-input">
+              {items.map((item, i) => {
+                const line = quote?.lines[i];
+                return (
+                  <li
+                    key={`${item.slug}-${i}`}
+                    className="flex gap-3 rounded-[1rem] border border-border p-3"
+                  >
+                    <img
+                      src={imageSrc(item)}
+                      alt=""
+                      className="h-16 w-16 shrink-0 rounded-[0.75rem] object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display text-base">{item.name}</p>
+                      {Object.entries(item.options).length > 0 && (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {Object.entries(item.options)
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(" · ")}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="inline-flex items-center rounded-sm border border-input">
+                          <button
+                            type="button"
+                            aria-label="Decrease quantity"
+                            onClick={() => setQuantity(i, item.quantity - 1)}
+                            className="p-1.5"
+                          >
+                            <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <span className="min-w-6 text-center text-sm font-semibold">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label="Increase quantity"
+                            onClick={() => setQuantity(i, item.quantity + 1)}
+                            className="p-1.5"
+                          >
+                            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          aria-label="Decrease quantity"
-                          onClick={() => setQuantity(i, item.quantity - 1)}
-                          className="p-1.5"
+                          onClick={() => remove(i)}
+                          aria-label={`Remove ${item.name}`}
+                          className="text-muted-foreground hover:text-primary"
                         >
-                          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
-                        <span className="min-w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                        <button
-                          type="button"
-                          aria-label="Increase quantity"
-                          onClick={() => setQuantity(i, item.quantity + 1)}
-                          className="p-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                        <span className="ml-auto text-right">
+                          <span className="block font-display text-base text-gold">
+                            {formatMoney(line?.line_total_cents)}
+                          </span>
+                          {line?.payment_rule === "deposit" && (
+                            <span className="block text-[11px] text-muted-foreground">
+                              {formatMoney(line.line_due_now_cents)} due now
+                            </span>
+                          )}
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => remove(i)}
-                        aria-label={`Remove ${item.name}`}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                      <span className="ml-auto font-display text-base text-gold">
-                        {formatMoney(lineDueCents(item))}
-                      </span>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
 
         {items.length > 0 && (
           <div className="border-t border-border p-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm text-muted-foreground">Subtotal</span>
-              <span className="font-display text-2xl">{formatMoney(dueNowCents)}</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-baseline justify-between">
+                <span className="text-muted-foreground">Order total</span>
+                <span className="font-display text-xl">{formatMoney(quote?.total_cents)}</span>
+              </div>
+              <div className="flex items-baseline justify-between font-semibold">
+                <span>Due now</span>
+                <span className="font-display text-2xl">{formatMoney(quote?.due_now_cents)}</span>
+              </div>
+              {(quote?.balance_cents ?? 0) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Balance of {formatMoney(quote?.balance_cents)} due before pickup or delivery.
+                </p>
+              )}
             </div>
+            {isPricing && <p className="mt-2 text-xs text-muted-foreground">Updating total...</p>}
+            {pricingError && <p className="mt-2 text-xs text-destructive">{pricingError}</p>}
             <Button asChild className="mt-4 w-full">
               <Link to="/checkout" onClick={() => setOpen(false)}>
                 Checkout

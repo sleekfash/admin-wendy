@@ -101,9 +101,11 @@ function PricingPage() {
                           {pack && (
                             <span className="block text-sm text-muted-foreground">{pack}</span>
                           )}
-                          {p.payment_rule === "deposit" && p.deposit_cents != null && (
+                          {p.payment_rule === "deposit" && (
                             <span className="block text-sm text-muted-foreground">
-                              {formatMoney(p.deposit_cents)} deposit holds your date
+                              {p.deposit_percent != null
+                                ? `${p.deposit_percent}% deposit holds your date`
+                                : `${formatMoney(p.deposit_cents)} deposit holds your date`}
                             </span>
                           )}
                         </dt>
@@ -167,16 +169,22 @@ function PricingPage() {
                   pies, small chops and drinks.
                 </li>
                 <li>
-                  <strong className="text-foreground">Tiered cakes take a deposit</strong> to hold
-                  the date, with the balance due before collection.
+                  <strong className="text-foreground">Custom cakes take the deposit shown</strong>{" "}
+                  to hold the date, with the balance due before pickup or delivery.
                 </li>
                 <li>
                   <strong className="text-foreground">Pickup is free</strong> in Etobicoke. Delivery
-                  is charged by postal code and shown at checkout before you pay.
+                  is $30 in Etobicoke or $35 across the configured GTA postal zones, shown at
+                  checkout before you pay.
                 </li>
                 <li>
-                  <strong className="text-foreground">All prices are in CAD</strong> and include the
-                  finish shown on the product page.
+                  <strong className="text-foreground">Custom cake minimums are $130</strong> for
+                  buttercream and $280 for fondant. Your configured total must meet the relevant
+                  minimum.
+                </li>
+                <li>
+                  <strong className="text-foreground">Each tier is a full three-layer cake.</strong>{" "}
+                  Fondant figures and sculpted models are not offered.
                 </li>
               </ul>
               <Link

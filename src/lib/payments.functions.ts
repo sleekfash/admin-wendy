@@ -6,7 +6,7 @@ export type { CardOrderInput };
 
 /** Whether the card option should appear at checkout. */
 export const cardPaymentsEnabled = createServerFn({ method: "GET" }).handler(async () => ({
-  enabled: Boolean(process.env["STRIPE_SECRET_KEY"]),
+  enabled: Boolean(process.env["STRIPE_SECRET_KEY"] && process.env["STRIPE_WEBHOOK_SECRET"]),
 }));
 
 /**
@@ -18,7 +18,10 @@ export const startCardPayment = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => cardOrderSchema.parse(data))
   .handler(async ({ data }) => {
     const secret = process.env["STRIPE_SECRET_KEY"];
-    if (!secret) throw new Error("Card payments are not switched on yet.");
+    const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
+    if (!secret || !webhookSecret) {
+      throw new Error("Card payments are not switched on yet.");
+    }
 
     const { createPricedOrder } = await import("@/lib/order-create.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -30,19 +33,22 @@ export const startCardPayment = createServerFn({ method: "POST" })
       payment_status: "pending",
     });
 
-    if (cart.due_now_cents < 100) {
-      throw new Error("That amount is too small to charge by card.");
-    }
-
-    const origin = new URL(getRequest().url).origin;
     const stripe = new Stripe(secret, { httpClient: Stripe.createFetchHttpClient() });
+    let sessionId: string | null = null;
 
     try {
+      if (cart.due_now_cents < 100) {
+        throw new Error("That amount is too small to charge by card.");
+      }
+
+      const origin = new URL(getRequest().url).origin;
       const session = await stripe.checkout.sessions.create(
         {
           mode: "payment",
+          payment_method_types: ["card"],
           client_reference_id: reference,
           metadata: { order_id: id, reference },
+          payment_intent_data: { metadata: { order_id: id, reference } },
           ...(data.email ? { customer_email: data.email } : {}),
           line_items: [
             {
@@ -53,7 +59,7 @@ export const startCardPayment = createServerFn({ method: "POST" })
                 product_data: {
                   name:
                     cart.balance_cents > 0
-                      ? `Wendy's Bakehouse order ${reference} — deposit`
+                      ? `Wendy's Bakehouse order ${reference} - amount due now`
                       : `Wendy's Bakehouse order ${reference}`,
                 },
               },
@@ -64,22 +70,41 @@ export const startCardPayment = createServerFn({ method: "POST" })
         },
         { idempotencyKey: `order-${id}` },
       );
+      sessionId = session.id;
 
-      await supabaseAdmin
+      if (!session.url) throw new Error("Stripe did not return a checkout URL.");
+
+      const { data: linked, error: linkError } = await supabaseAdmin
         .from("orders")
         .update({ stripe_session_id: session.id })
-        .eq("id", id);
-
-      if (!session.url) throw new Error("no session url");
+        .eq("id", id)
+        .eq("payment_status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (linkError || !linked) throw new Error("Could not link the Stripe session to the order.");
 
       return { reference, url: session.url, dueNowCents: cart.due_now_cents };
     } catch (error) {
+      if (sessionId) {
+        try {
+          await stripe.checkout.sessions.expire(sessionId);
+        } catch (expireError) {
+          console.error("stripe session cleanup failed", { orderId: id, sessionId, expireError });
+        }
+      }
+
       // The order stays on record as failed rather than silently disappearing.
-      await supabaseAdmin
+      const { data: failed, error: cleanupError } = await supabaseAdmin
         .from("orders")
         .update({ payment_status: "failed" })
-        .eq("id", id);
-      console.error("stripe session create failed", error);
+        .eq("id", id)
+        .eq("payment_status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (cleanupError || !failed) {
+        console.error("stripe order cleanup failed", { orderId: id, cleanupError });
+      }
+      console.error("stripe session create failed", { orderId: id, error });
       throw new Error("We could not open the card payment page. Please try again.");
     }
   });

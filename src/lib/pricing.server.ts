@@ -1,3 +1,11 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  CUSTOM_CAKE_CATEGORY_ID,
+  CUSTOM_CAKE_RULE_GROUPS,
+  isCustomCakeProduct,
+} from "./custom-cake-contract";
+import type { AppDatabase } from "./database.types";
+
 /**
  * The single authoritative pricing engine.
  *
@@ -41,6 +49,7 @@ export type PricedLine = {
   line_total_cents: number;
   line_due_now_cents: number;
   deposit_cents: number | null;
+  deposit_percent: number | null;
   options_snapshot: OptionSnapshot[];
   options: Record<string, string>;
   notes: string | null;
@@ -68,7 +77,6 @@ export type PricedCart = {
 
 export class PricingError extends Error {}
 
-
 /** Reads a lead time such as "5 days" or "2 weeks" into whole days. */
 export function leadTimeDays(text: string | null | undefined): number {
   if (!text) return 0;
@@ -84,7 +92,7 @@ export function normalisePostalCode(value: string): string {
 
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  return supabaseAdmin as unknown as SupabaseClient<AppDatabase>;
 }
 
 /** Prices a set of requested lines against current, authoritative product data. */
@@ -96,7 +104,7 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
   const { data: products, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name, status, lead_time, price_cents, deposit_cents, payment_rule, pack_size, pack_unit",
+      "id, slug, name, status, lead_time, price_cents, deposit_cents, deposit_percent, payment_rule, pack_size, pack_unit, category_id",
     )
     .in("slug", slugs);
   if (error) throw new PricingError("We could not load the menu. Please try again.");
@@ -111,30 +119,44 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
     if (product.price_cents == null) {
       throw new PricingError(`${product.name} has no published price and cannot be ordered.`);
     }
-    if (product.payment_rule === "deposit" && product.deposit_cents == null) {
+    if (
+      product.payment_rule === "deposit" &&
+      product.deposit_cents == null &&
+      product.deposit_percent == null
+    ) {
       throw new PricingError(`${product.name} has an incomplete payment setup.`);
+    }
+    if (isCustomCakeProduct(product.id)) {
+      if (product.payment_rule !== "deposit") {
+        throw new PricingError(`${product.name} has an incomplete payment setup.`);
+      }
+      if (product.category_id !== CUSTOM_CAKE_CATEGORY_ID) {
+        throw new PricingError(
+          `${product.name} is temporarily unavailable because its setup needs attention.`,
+        );
+      }
     }
   }
 
   const productIds = [...bySlug.values()].map((p) => p.id);
-  const [{ data: groups }, { data: choices }] = await Promise.all([
-    supabase
-      .from("product_option_groups")
-      .select("id, product_id, key, label, required, available, sort_order")
-      .in("product_id", productIds),
-    supabase
-      .from("product_option_choices")
-      .select("id, group_id, key, label, price_delta_cents, available")
-      .in(
-        "group_id",
-        (
-          await supabase
-            .from("product_option_groups")
-            .select("id")
-            .in("product_id", productIds)
-        ).data?.map((g) => g.id) ?? [],
-      ),
-  ]);
+  const { data: groups, error: groupsError } = await supabase
+    .from("product_option_groups")
+    .select("id, product_id, key, label, required, allow_multiple, available, sort_order")
+    .in("product_id", productIds);
+  if (groupsError)
+    throw new PricingError("We could not load the product choices. Please try again.");
+
+  const groupIds = (groups ?? []).map((group) => group.id);
+  const choicesResult = groupIds.length
+    ? await supabase
+        .from("product_option_choices")
+        .select("id, group_id, key, label, price_delta_cents, available")
+        .in("group_id", groupIds)
+    : null;
+  if (choicesResult?.error) {
+    throw new PricingError("We could not load the product choices. Please try again.");
+  }
+  const choices = choicesResult?.data ?? [];
 
   const groupsByProduct = new Map<string, NonNullable<typeof groups>>();
   for (const g of groups ?? []) {
@@ -151,22 +173,57 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
 
   return requests.map((request) => {
     const product = bySlug.get(request.slug)!;
-    const productGroups = (groupsByProduct.get(product.id) ?? []).filter((g) => g.available);
+    const allProductGroups = groupsByProduct.get(product.id) ?? [];
+    const requireCakeGroup = (
+      rule: (typeof CUSTOM_CAKE_RULE_GROUPS)[keyof typeof CUSTOM_CAKE_RULE_GROUPS],
+    ) => {
+      const group = allProductGroups.find((candidate) => candidate.id === rule.id);
+      if (
+        !group ||
+        group.key !== rule.key ||
+        !group.available ||
+        group.required !== rule.required ||
+        group.allow_multiple !== rule.allowMultiple
+      ) {
+        throw new PricingError(
+          `${product.name} is temporarily unavailable because its options need attention.`,
+        );
+      }
+      return group;
+    };
+    const cakeGroups = isCustomCakeProduct(product.id)
+      ? {
+          sizeLayers: requireCakeGroup(CUSTOM_CAKE_RULE_GROUPS.sizeLayers),
+          extraTiers: requireCakeGroup(CUSTOM_CAKE_RULE_GROUPS.extraTiers),
+          fondantCovering: requireCakeGroup(CUSTOM_CAKE_RULE_GROUPS.fondantCovering),
+          tieringFee: requireCakeGroup(CUSTOM_CAKE_RULE_GROUPS.tieringFee),
+        }
+      : null;
+    const productGroups = allProductGroups.filter((g) => g.available);
     const groupByKey = new Map(productGroups.map((g) => [g.key, g]));
 
-    const seen = new Set<string>();
+    const seenGroups = new Set<string>();
+    const seenChoices = new Set<string>();
+    const selectedByGroupId = new Map<string, OptionSnapshot[]>();
     const snapshot: OptionSnapshot[] = [];
     let optionsTotal = 0;
 
     for (const selection of request.choices) {
       const group = groupByKey.get(selection.group_key);
       if (!group) {
-        throw new PricingError(`${product.name} no longer offers that option. Rebuild your basket.`);
+        throw new PricingError(
+          `${product.name} no longer offers that option. Rebuild your basket.`,
+        );
       }
-      if (seen.has(group.key)) {
+      const selectionKey = `${group.key}:${selection.choice_key}`;
+      if (seenChoices.has(selectionKey)) {
+        throw new PricingError(`${selection.choice_key} was chosen twice for ${product.name}.`);
+      }
+      if (!group.allow_multiple && seenGroups.has(group.key)) {
         throw new PricingError(`${group.label} was chosen twice for ${product.name}.`);
       }
-      seen.add(group.key);
+      seenGroups.add(group.key);
+      seenChoices.add(selectionKey);
 
       const choice = (choicesByGroup.get(group.id) ?? []).find(
         (c) => c.key === selection.choice_key,
@@ -178,17 +235,21 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
         throw new PricingError(`${choice.label} is sold out for ${product.name}.`);
       }
       optionsTotal += choice.price_delta_cents;
-      snapshot.push({
+      const selected = {
         group_key: group.key,
         group_label: group.label,
         choice_key: choice.key,
         choice_label: choice.label,
         price_delta_cents: choice.price_delta_cents,
-      });
+      };
+      snapshot.push(selected);
+      const groupSelections = selectedByGroupId.get(group.id) ?? [];
+      groupSelections.push(selected);
+      selectedByGroupId.set(group.id, groupSelections);
     }
 
     for (const group of productGroups) {
-      if (group.required && !seen.has(group.key)) {
+      if (group.required && !seenGroups.has(group.key)) {
         throw new PricingError(`Choose a ${group.label.toLowerCase()} for ${product.name}.`);
       }
     }
@@ -196,9 +257,89 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
     const base = product.price_cents!;
     const unitTotal = base + optionsTotal;
     if (unitTotal < 0) throw new PricingError(`${product.name} is misconfigured.`);
+
+    if (cakeGroups) {
+      const sizeSelections = selectedByGroupId.get(cakeGroups.sizeLayers.id) ?? [];
+      if (sizeSelections.length !== 1) {
+        throw new PricingError(`Choose a size and layer count for ${product.name}.`);
+      }
+      const sizeAndLayers = sizeSelections[0]!;
+      const extraTiers = selectedByGroupId.get(cakeGroups.extraTiers.id) ?? [];
+      const secondTiers = extraTiers.filter((choice) =>
+        choice.choice_key.startsWith("second-tier-"),
+      );
+      const thirdTiers = extraTiers.filter((choice) => choice.choice_key.startsWith("third-tier-"));
+      const tieringFees = selectedByGroupId.get(cakeGroups.tieringFee.id) ?? [];
+      const tieringFee = tieringFees[0];
+
+      if (
+        secondTiers.length + thirdTiers.length !== extraTiers.length ||
+        secondTiers.length > 1 ||
+        thirdTiers.length > 1
+      ) {
+        throw new PricingError("Choose only one cake size for each extra tier.");
+      }
+      if (thirdTiers.length > 0 && secondTiers.length === 0) {
+        throw new PricingError("Add a second tier before choosing a third tier.");
+      }
+      if (extraTiers.length > 0 && !sizeAndLayers.choice_key.endsWith("3-layers")) {
+        throw new PricingError("Every tiered cake starts with a three-layer base cake.");
+      }
+
+      const tierCount = 1 + extraTiers.length;
+      const expectedTieringFee =
+        tierCount === 2 ? "tiering-2-tiers" : tierCount === 3 ? "tiering-3-tiers" : null;
+      if (expectedTieringFee !== (tieringFee?.choice_key ?? null)) {
+        throw new PricingError(
+          expectedTieringFee
+            ? `Choose the ${tierCount}-tier stacking fee for this cake.`
+            : "Remove the tiering fee unless you add another cake tier.",
+        );
+      }
+
+      if (extraTiers.length > 0) {
+        const sizes = [
+          sizeAndLayers.choice_key.match(/^(6|8|10)-inch/)?.[1],
+          ...extraTiers.map((choice) => choice.choice_key.match(/(6|8|10)-inch$/)?.[1]),
+        ];
+        if (sizes.some((size) => !size) || new Set(sizes).size !== sizes.length) {
+          throw new PricingError("Each tier must use a different cake size.");
+        }
+      }
+
+      const fondantCovering = (selectedByGroupId.get(cakeGroups.fondantCovering.id) ?? [])[0];
+      const expectedFondant = `fondant-${tierCount}-${tierCount === 1 ? "tier" : "tiers"}`;
+      if (fondantCovering && fondantCovering.choice_key !== expectedFondant) {
+        throw new PricingError(
+          `Choose fondant covering for exactly ${tierCount} tier${tierCount === 1 ? "" : "s"}.`,
+        );
+      }
+
+      const fondant = fondantCovering != null;
+      const minimum = fondant ? 28_000 : 13_000;
+      if (unitTotal < minimum) {
+        throw new PricingError(
+          `${product.name} has a ${fondant ? "$280 fondant" : "$130 buttercream"} minimum. Add a larger size or more design details.`,
+        );
+      }
+    }
+
     const lineTotal = unitTotal * request.quantity;
+    const depositPercent =
+      product.payment_rule === "deposit" ? (product.deposit_percent ?? null) : null;
     const dueNow =
-      product.payment_rule === "deposit" ? product.deposit_cents! * request.quantity : lineTotal;
+      product.payment_rule === "deposit"
+        ? depositPercent != null
+          ? Math.round((lineTotal * depositPercent) / 100)
+          : product.deposit_cents! * request.quantity
+        : lineTotal;
+
+    const options = new Map<string, string[]>();
+    for (const choice of snapshot) {
+      const labels = options.get(choice.group_label) ?? [];
+      labels.push(choice.choice_label);
+      options.set(choice.group_label, labels);
+    }
 
     return {
       product_id: product.id,
@@ -214,8 +355,11 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       line_total_cents: lineTotal,
       line_due_now_cents: dueNow,
       deposit_cents: product.deposit_cents,
+      deposit_percent: depositPercent,
       options_snapshot: snapshot,
-      options: Object.fromEntries(snapshot.map((s) => [s.group_label, s.choice_label])),
+      options: Object.fromEntries(
+        [...options].map(([label, choices]) => [label, choices.join(", ")]),
+      ),
       notes: request.notes ?? null,
       lead_time: product.lead_time,
     };
@@ -259,9 +403,7 @@ export async function resolveDelivery(
       .eq("active", true)
       .order("sort_order");
     const zone = (zones ?? []).find((z) =>
-      (z.postal_prefixes ?? []).some((prefix) =>
-        postal.startsWith(normalisePostalCode(prefix)),
-      ),
+      (z.postal_prefixes ?? []).some((prefix) => postal.startsWith(normalisePostalCode(prefix))),
     );
     if (!zone) {
       throw new PricingError("We do not deliver to that postal code yet. Please choose pickup.");
@@ -278,7 +420,9 @@ export async function resolveDelivery(
 
   // Distance mode: the routing service is the only trusted source of a fee.
   const origin = settings?.delivery_origin_postal_code;
-  const config = settings?.delivery_distance_config as { bands?: { max_km: number; fee_cents: number }[] } | null;
+  const config = settings?.delivery_distance_config as {
+    bands?: { max_km: number; fee_cents: number }[];
+  } | null;
   const bands = [...(config?.bands ?? [])].sort((a, b) => a.max_km - b.max_km);
   if (!origin || bands.length === 0) {
     throw new PricingError("Delivery pricing is not configured yet. Please choose pickup.");
@@ -333,7 +477,6 @@ async function drivingDistanceKm(originPostal: string, destinationPostal: string
     }),
   });
 
-
   if (!response.ok) {
     const body = await response.text();
     console.error(`Routes request failed [${response.status}]: ${body}`);
@@ -371,5 +514,3 @@ export async function priceCart(
     requires_deposit: lines.some((l) => l.payment_rule === "deposit"),
   };
 }
-
-

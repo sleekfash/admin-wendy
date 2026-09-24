@@ -17,8 +17,6 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { Toaster } from "@/components/ui/sonner";
 import { CartProvider } from "@/lib/cart";
 
-
-
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -88,7 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Toronto celebration cakes with a Naija heart. Custom cakes, cupcakes, meat pies, cake loaves and gift boxes made to order for pickup in Etobicoke.",
+          "Toronto celebration cakes with a Naija heart. Custom cakes, cupcakes, pastries, cake loaves and drinks made to order for pickup in Etobicoke.",
       },
       { name: "author", content: "Wendy's Bakehouse" },
       { property: "og:site_name", content: "Wendy's Bakehouse" },
@@ -149,4 +147,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

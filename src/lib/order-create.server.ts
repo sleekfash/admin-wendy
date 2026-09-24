@@ -1,4 +1,5 @@
 import type { OrderCoreInput } from "./order-schemas";
+import type { PaymentStatus } from "./order-status";
 import { priceCart, PricingError, leadTimeDays, type PricedCart } from "./pricing.server";
 
 /**
@@ -10,7 +11,7 @@ import { priceCart, PricingError, leadTimeDays, type PricedCart } from "./pricin
 export type OrderMeta = {
   checkout_method: "whatsapp" | "bank_transfer" | "card";
   payment_provider: string;
-  payment_status: string;
+  payment_status: PaymentStatus;
   payer_name?: string | null;
   transfer_reference?: string | null;
   transfer_date?: string | null;
@@ -37,6 +38,7 @@ function toLines(cart: PricedCart) {
     quantity: l.quantity,
     unit_price_cents: l.unit_total_cents,
     deposit_cents: l.deposit_cents,
+    deposit_percent: l.deposit_percent,
     pricing_mode: l.payment_rule === "deposit" ? "deposit" : "fixed",
     payment_rule: l.payment_rule,
     pack_size: l.pack_size,
@@ -76,7 +78,14 @@ export async function priceOrderBasket(data: OrderCoreInput): Promise<PricedCart
     const today = new Date().toISOString().slice(0, 10);
     const notice = daysBetween(today, data.pickup_date);
     if (notice < 0) throw new Error("Please choose a collection date in the future.");
-    const required = Math.max(0, ...cart.lines.map((l) => leadTimeDays(l.lead_time)));
+    const required = Math.max(
+      0,
+      ...cart.lines.map((line) =>
+        line.options_snapshot.some((choice) => choice.choice_key === "rush-under-48-hours")
+          ? 1
+          : leadTimeDays(line.lead_time),
+      ),
+    );
     if (notice < required) {
       throw new Error(
         `Those items need at least ${required} day${required === 1 ? "" : "s"} notice. Please pick a later date.`,
@@ -94,6 +103,7 @@ export async function createPricedOrder(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const cart = await priceOrderBasket(data);
   const lines = toLines(cart);
+  const depositPercents = [...new Set(cart.lines.flatMap((line) => line.deposit_percent ?? []))];
 
   const reference = `WB-${new Date().getFullYear().toString().slice(2)}${Math.floor(
     100000 + Math.random() * 900000,
@@ -120,6 +130,7 @@ export async function createPricedOrder(
       balance_cents: cart.balance_cents,
       delivery_postal_code: cart.delivery.postal_code,
       delivery_snapshot: cart.delivery,
+      deposit_percent: depositPercents.length === 1 ? depositPercents[0] : null,
       has_quote_items: false,
       status: "new",
       checkout_method: meta.checkout_method,

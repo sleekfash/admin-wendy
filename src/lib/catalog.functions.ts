@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
+import type { AppDatabase } from "@/lib/database.types";
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
   const url = process.env["SUPABASE_URL"]!;
-  return createClient<Database>(url, key, {
+  return createClient<AppDatabase>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       fetch: (input, init) => {
@@ -34,7 +34,7 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
     supabaseAdmin.from("settings").select("whatsapp_number").limit(1).maybeSingle(),
     supabase
       .from("product_option_groups")
-      .select("id, product_id, key, label, required, available, sort_order")
+      .select("id, product_id, key, label, required, allow_multiple, available, sort_order")
       .eq("available", true)
       .order("sort_order"),
     supabase
@@ -46,6 +46,8 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
 
   if (cats.error) throw new Error(cats.error.message);
   if (prods.error) throw new Error(prods.error.message);
+  if (groups.error) throw new Error(groups.error.message);
+  if (choices.error) throw new Error(choices.error.message);
 
   return {
     categories: cats.data ?? [],

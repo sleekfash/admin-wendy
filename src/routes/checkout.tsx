@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCart, lineDueCents } from "@/lib/cart";
+import { useCart } from "@/lib/cart";
 import {
   catalogQueryOptions,
   bankDetailsQueryOptions,
@@ -52,7 +52,7 @@ export const Route = createFileRoute("/checkout")({
 
 function minDate() {
   const d = new Date();
-  d.setDate(d.getDate() + 3);
+  d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 }
 
@@ -67,14 +67,33 @@ function readFileAsBase64(file: File): Promise<string> {
 
 type Receipt = {
   reference: string;
+  totalCents: number;
   dueNowCents: number;
-  hasQuoteItems: boolean;
+  balanceCents: number;
   method: PayMethod;
   waLink: string;
+  slipUploaded: boolean;
+};
+
+type SubmittedOrder = {
+  reference: string;
+  totalCents: number;
+  dueNowCents: number;
+  balanceCents: number;
+  deliveryFeeCents: number;
+  lines: {
+    name: string;
+    quantity: number;
+    payment_rule: "full" | "deposit";
+    line_total_cents: number;
+    line_due_now_cents: number;
+    deposit_percent: number | null;
+    options: Record<string, string>;
+  }[];
 };
 
 function CheckoutPage() {
-  const { items, dueNowCents, hasQuoteItems, clear } = useCart();
+  const { items, clear } = useCart();
   const submitOrder = useServerFn(placeOrder);
   const payByCard = useServerFn(startCardPayment);
   const checkCard = useServerFn(cardPaymentsEnabled);
@@ -92,6 +111,7 @@ function CheckoutPage() {
   const [method, setMethod] = useState<PayMethod>("whatsapp");
   const [busy, setBusy] = useState(false);
   const [slip, setSlip] = useState<File | null>(null);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [done, setDone] = useState<Receipt | null>(null);
   const [form, setForm] = useState({
     customer_name: "",
@@ -116,7 +136,6 @@ function CheckoutPage() {
   const cartRequest = items.map((i) => ({
     slug: i.slug,
     quantity: i.quantity,
-    options: i.options,
     choices: i.choices ?? [],
     notes: i.notes,
   }));
@@ -135,27 +154,35 @@ function CheckoutPage() {
   });
   const totals = quote?.ok ? quote.cart : null;
 
-  function buildWhatsAppLink(reference: string) {
-    const lines = items.map((i) => {
-      const total = lineDueCents(i);
-      const opts = Object.entries(i.options)
+  function buildWhatsAppLink(order: SubmittedOrder) {
+    const lines = order.lines.map((line) => {
+      const opts = Object.entries(line.options)
         .map(([k, v]) => `${k}: ${v}`)
         .join(", ");
-      return `• ${i.quantity} × ${i.name}${opts ? ` (${opts})` : ""} — ${
-        total > 0 ? formatMoney(total) : "quoted"
-      }`;
+      const deposit =
+        line.payment_rule === "deposit"
+          ? `; ${line.deposit_percent != null ? `${line.deposit_percent}% ` : ""}deposit ${formatMoney(line.line_due_now_cents)} due now`
+          : "";
+      return `• ${line.quantity} × ${line.name}${opts ? ` (${opts})` : ""} — ${formatMoney(line.line_total_cents)}${deposit}`;
     });
     const body = [
-      `Hi Wendy, here is my order ${reference}.`,
+      `Hi Wendy, here is my order ${order.reference}.`,
       "",
       ...lines,
       "",
-      `Total due: ${formatMoney(dueNowCents)}${hasQuoteItems ? " + quoted items" : ""}`,
+      `Order total: ${formatMoney(order.totalCents)}`,
+      `Due now: ${formatMoney(order.dueNowCents)}`,
+      order.balanceCents > 0
+        ? `Balance due before pickup or delivery: ${formatMoney(order.balanceCents)}`
+        : "No remaining balance after the due-now payment.",
+      order.deliveryFeeCents > 0
+        ? `Delivery fee included: ${formatMoney(order.deliveryFeeCents)}`
+        : "",
       `Name: ${form.customer_name}`,
       `Phone: ${form.phone}`,
       form.pickup_date ? `Date needed: ${form.pickup_date} (${form.pickup_window})` : "",
       form.fulfilment === "delivery"
-        ? `Delivery to: ${form.delivery_area || "to confirm"}`
+        ? `Delivery to: ${form.delivery_area || "to confirm"}, ${form.delivery_postal_code}`
         : "Pickup in Etobicoke",
       form.occasion ? `Occasion: ${form.occasion}` : "",
       form.notes ? `Notes: ${form.notes}` : "",
@@ -170,6 +197,10 @@ function CheckoutPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (!policiesAccepted) {
+      toast.error("Read and accept the ordering policies before placing your order.");
+      return;
+    }
 
     if (method === "bank_transfer") {
       if (!form.payer_name.trim()) {
@@ -200,7 +231,6 @@ function CheckoutPage() {
         items: items.map((i) => ({
           slug: i.slug,
           quantity: i.quantity,
-          options: i.options,
           choices: i.choices ?? [],
           notes: i.notes,
         })),
@@ -233,15 +263,16 @@ function CheckoutPage() {
 
       const result = await submitOrder({ data: payload });
 
-
-      const waLink = buildWhatsAppLink(result.reference);
+      const waLink = buildWhatsAppLink(result);
       clear();
       setDone({
         reference: result.reference,
+        totalCents: result.totalCents,
         dueNowCents: result.dueNowCents,
-        hasQuoteItems: result.hasQuoteItems,
+        balanceCents: result.balanceCents,
         method,
         waLink,
+        slipUploaded: result.slipUploaded,
       });
       if (method === "whatsapp") window.open(waLink, "_blank", "noopener");
     } catch (error) {
@@ -258,8 +289,8 @@ function CheckoutPage() {
       <>
         <PageHeader
           eyebrow={`Order ${done.reference}`}
-          title="Your order is in the book."
-          lead="Here is what happens next."
+          title="Order received — payment pending."
+          lead="Your date is held once your payment is confirmed. Here is what happens next."
         />
         <Section>
           <ol className="max-w-[70ch] space-y-6">
@@ -272,15 +303,18 @@ function CheckoutPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 {done.method === "whatsapp"
                   ? "Your itemised receipt is ready to send — tap the button below if the chat did not open."
-                  : "Wendy checks your slip against the account and marks the order paid, usually within a few hours."}
+                  : done.slipUploaded
+                    ? "Wendy checks your slip against the account and marks the order paid, usually within a few hours."
+                    : "Wendy confirms the transfer against the account and marks the order paid, usually within a few hours."}
               </p>
             </li>
             <li className="border-t border-border pt-5">
-              <h2 className="font-display text-xl">
-                {done.dueNowCents > 0 ? `Due now ${formatMoney(done.dueNowCents)}` : "Pricing"}
-              </h2>
+              <h2 className="font-display text-xl">Order total {formatMoney(done.totalCents)}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Your order is marked Not Paid until Wendy verifies your payment.
+                {formatMoney(done.dueNowCents)} is due now
+                {done.balanceCents > 0
+                  ? `, with ${formatMoney(done.balanceCents)} due before pickup or delivery.`
+                  : ". Your order is paid in full once this payment is verified."}
               </p>
             </li>
             <li className="border-t border-border pt-5">
@@ -505,20 +539,23 @@ function CheckoutPage() {
                 </TabsList>
 
                 {cardEnabled && (
-                  <TabsContent value="card" className="mt-5 space-y-3 text-sm text-muted-foreground">
+                  <TabsContent
+                    value="card"
+                    className="mt-5 space-y-3 text-sm text-muted-foreground"
+                  >
                     <p>
                       Pay securely by card. We place your order, then hand you to Stripe&rsquo;s
                       payment page — your card details never touch this site.
                     </p>
                     {totals && totals.balance_cents > 0 && (
                       <p>
-                        You&rsquo;ll be charged the {formatMoney(totals.due_now_cents)} deposit now;
-                        the {formatMoney(totals.balance_cents)} balance is due before collection.
+                        You&rsquo;ll be charged {formatMoney(totals.due_now_cents)} now, including
+                        any items and delivery due in full. The {formatMoney(totals.balance_cents)}
+                        balance is due before pickup or delivery.
                       </p>
                     )}
                   </TabsContent>
                 )}
-
 
                 <TabsContent value="whatsapp" className="mt-5 text-sm text-muted-foreground">
                   We place the order and open WhatsApp with an itemised receipt already written out,
@@ -595,6 +632,33 @@ function CheckoutPage() {
                 </TabsContent>
               </Tabs>
             </div>
+
+            <div className="flex items-start gap-3 rounded-[1.5rem] border border-border bg-secondary p-5">
+              <input
+                id="policies-accepted"
+                type="checkbox"
+                required
+                checked={policiesAccepted}
+                onChange={(event) => setPoliciesAccepted(event.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 accent-primary"
+              />
+              <div>
+                <Label htmlFor="policies-accepted">I accept the ordering policies.</Label>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Custom cakes require the deposit shown in your order, balances are due before
+                  pickup or delivery, and a date is held only after payment is confirmed. Read the
+                  full{" "}
+                  <Link
+                    to="/policies"
+                    target="_blank"
+                    className="font-semibold text-foreground underline decoration-gold underline-offset-4"
+                  >
+                    payment, pickup, delivery and allergen policies
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
           </div>
 
           <aside className="md:col-span-5">
@@ -622,16 +686,14 @@ function CheckoutPage() {
                       <span>
                         {item.quantity} × {item.name}
                       </span>
-                      <span className="shrink-0 text-muted-foreground">
-                        {formatMoney(lineDueCents(item))}
-                      </span>
+                      <span className="shrink-0 text-muted-foreground">Updating...</span>
                     </li>
                   ))}
               </ul>
               <div className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>{formatMoney(totals?.subtotal_cents ?? dueNowCents)}</span>
+                  <span>{formatMoney(totals?.subtotal_cents)}</span>
                 </div>
                 {totals && form.fulfilment === "delivery" && (
                   <div className="flex justify-between">
@@ -660,7 +722,8 @@ function CheckoutPage() {
                     </div>
                     {totals.balance_cents > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Balance of {formatMoney(totals.balance_cents)} due before collection.
+                        Balance of {formatMoney(totals.balance_cents)} due before pickup or
+                        delivery.
                       </p>
                     )}
                   </>
@@ -674,7 +737,7 @@ function CheckoutPage() {
               )}
               <button
                 type="submit"
-                disabled={busy || (form.fulfilment === "delivery" && !totals) || (method === "card" && !totals)}
+                disabled={busy || !totals}
                 className="mt-6 w-full rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy
@@ -690,7 +753,7 @@ function CheckoutPage() {
               <p className="mt-3 text-xs text-muted-foreground">
                 {method === "card"
                   ? "Card orders are marked paid automatically once Stripe confirms the charge."
-                  : "Orders start as Not Paid until Wendy verifies payment."}
+                  : "Orders stay unpaid until Wendy verifies the payment."}
               </p>
             </div>
           </aside>

@@ -16,7 +16,7 @@ import { catalogQueryOptions, categoryImage, formatMoney, packLabel } from "@/li
 
 const TITLE = "Wendy's Bakehouse — Custom Cakes in Toronto & Etobicoke";
 const DESC =
-  "Toronto celebration cakes with a Naija heart. Custom cakes from $130, cupcakes from $35, meat pies and cake loaves — made to order for pickup in Etobicoke.";
+  "Toronto celebration cakes with a Naija heart. Custom cake bases from $70, cupcakes from $35, pastries, drinks and cake loaves for pickup in Etobicoke.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,10 +33,26 @@ export const Route = createFileRoute("/")({
 });
 
 const STEPS = [
-  { n: "01", t: "Tell me the details", d: "Flavour, size, date and the look you want — through the order form or WhatsApp." },
-  { n: "02", t: "I confirm your date", d: "You see the price as you order, and I confirm your pickup window." },
-  { n: "03", t: "Pay to hold the slot", d: "Payment secures your date. I only take what I can bake properly." },
-  { n: "04", t: "Collect in Etobicoke", d: "Address shared on confirmation. Delivery is available for a fee." },
+  {
+    n: "01",
+    t: "Tell me the details",
+    d: "Flavour, size, date and the look you want — through the order form or WhatsApp.",
+  },
+  {
+    n: "02",
+    t: "I confirm your date",
+    d: "You see the price as you order, and I confirm your pickup window.",
+  },
+  {
+    n: "03",
+    t: "Pay to hold the slot",
+    d: "Everyday items are paid in full; custom cakes require the deposit shown when ordering.",
+  },
+  {
+    n: "04",
+    t: "Collect or arrange delivery",
+    d: "Pickup is in Etobicoke, with fixed delivery rates for covered postal zones.",
+  },
 ];
 
 function Index() {
@@ -45,13 +61,15 @@ function Index() {
   const categories = data?.categories ?? [];
   const signature = products.slice(0, 4);
 
-
   return (
     <>
       <section className="relative bg-cocoa text-cocoa-foreground">
         <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-14 md:grid-cols-12 md:items-center md:py-20">
           <div className="relative md:order-2 md:col-span-6">
-            <div className="absolute -inset-2 rounded-[1.65rem] border border-gold/35 bg-cocoa-blush/15 blur-sm" aria-hidden="true" />
+            <div
+              className="absolute -inset-2 rounded-[1.65rem] border border-gold/35 bg-cocoa-blush/15 blur-sm"
+              aria-hidden="true"
+            />
             <img
               src={heroArtwork.url}
               alt="Wendy's Bakehouse custom cakes billboard featuring a pink leopard-print celebration cake"
@@ -61,13 +79,12 @@ function Index() {
           <div className="md:order-1 md:col-span-6">
             <Eyebrow>Now booking {BUSINESS.bookingMonth}</Eyebrow>
             <h1 className="mt-5 text-[2.5rem] leading-[1.03] md:text-6xl">
-              Toronto celebration cakes with a{" "}
-              <span className="text-gold">Naija</span> heart.
+              Toronto celebration cakes with a <span className="text-gold">Naija</span> heart.
             </h1>
             <p className="mt-6 max-w-[56ch] text-lg text-cocoa-foreground/75">
-              Made to order in Etobicoke by a Certified Food Handler. Custom cakes, cupcakes and
-              gift boxes alongside the meat pies and cake loaves you grew up on — with the prices
-              written down, so you never have to DM to find out.
+              Build your custom cake from a clear size-and-layer menu, then add only the design
+              details you want. Every choice is priced upfront by a Certified Food Handler baking to
+              order in Etobicoke.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -85,13 +102,14 @@ function Index() {
             </div>
             <ul className="mt-10 grid gap-4 border-t border-cocoa-foreground/15 pt-6 text-sm text-cocoa-foreground/75 sm:grid-cols-3">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Certified Food Handler
+                <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Certified Food
+                Handler
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gold" aria-hidden="true" /> Pickup in Etobicoke
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" /> Gift boxes from $30
+                <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" /> Cupcakes from $35
               </li>
             </ul>
           </div>
@@ -100,7 +118,7 @@ function Index() {
 
       <Section>
         <Eyebrow>Shop by collection</Eyebrow>
-        <h2 className="mt-4 text-3xl md:text-4xl">Two collections, one kitchen.</h2>
+        <h2 className="mt-4 text-3xl md:text-4xl">Five collections, one kitchen.</h2>
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
           {categories.map((c) => (
             <Link
@@ -122,14 +140,13 @@ function Index() {
             </Link>
           ))}
         </div>
-
       </Section>
 
       <Section tone="sand">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
             <Eyebrow>Prices at a glance</Eyebrow>
-            <h2 className="mt-4 text-3xl md:text-4xl">No &ldquo;DM for price&rdquo;.</h2>
+            <h2 className="mt-4 text-3xl md:text-4xl">Every price, in plain sight.</h2>
             <p className="mt-5 max-w-[46ch] text-muted-foreground">
               These are the real prices you pay, in CAD. Sizes and finishes that cost more are
               listed with exactly how much they add, so nothing is a surprise at checkout.
@@ -212,7 +229,8 @@ function Index() {
                 <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" /> Rich flavour
               </li>
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Just-right sweetness
+                <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Just-right
+                sweetness
               </li>
               <li className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-gold" aria-hidden="true" /> Ready on your date
@@ -237,7 +255,6 @@ function Index() {
             ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)
             : signature.map((p) => <ProductCard key={p.slug} product={p} />)}
         </div>
-
       </Section>
 
       <Section tone="cocoa">
@@ -253,10 +270,10 @@ function Index() {
           </div>
           <div>
             <Sparkles className="h-6 w-6 text-gold" aria-hidden="true" />
-            <h3 className="mt-4 font-display text-2xl">Both sides of the table</h3>
+            <h3 className="mt-4 font-display text-2xl">Your cake, itemised</h3>
             <p className="mt-3 text-cocoa-foreground/70">
-              A fondant birthday cake and three dozen meat pies can come from the same order. Very
-              few Toronto bakers do both properly.
+              Start with one of nine cake bases, then see each topper, colour, finish and tier added
+              to the total before checkout.
             </p>
           </div>
           <div>

@@ -17,8 +17,8 @@ export function SiteFooter() {
         <div className="md:col-span-2">
           <Lockup tone="cream" />
           <p className="mt-5 max-w-sm text-sm text-cocoa-foreground/70">
-            {BUSINESS.tagline} Made to order in Etobicoke by a Certified Food Handler —
-            celebration cakes, cupcakes, gift boxes and Naija pastries.
+            {BUSINESS.tagline} Made to order in Etobicoke by a Certified Food Handler — celebration
+            cakes, cupcakes, cake loaves and Naija pastries.
           </p>
           <a
             href={`tel:+${BUSINESS.phoneE164}`}
@@ -32,19 +32,34 @@ export function SiteFooter() {
         <div>
           <h2 className="eyebrow text-gold">Explore</h2>
           <ul className="mt-4 space-y-2 text-sm text-cocoa-foreground/80">
-            <li><Link to="/menu">Cakes &amp; treats</Link></li>
-            <li><Link to="/pricing">Pricing</Link></li>
-            <li><Link to="/menu">Start an order</Link></li>
-            <li><Link to="/about">Our story</Link></li>
-            <li><Link to="/contact">Contact &amp; pickup</Link></li>
+            <li>
+              <Link to="/menu">Cakes &amp; treats</Link>
+            </li>
+            <li>
+              <Link to="/pricing">Menu &amp; pricing</Link>
+            </li>
+            <li>
+              <Link to="/menu" search={{ category: "pastries" }}>
+                Pastries
+              </Link>
+            </li>
+            <li>
+              <Link to="/menu">Start an order</Link>
+            </li>
+            <li>
+              <Link to="/about">Our story</Link>
+            </li>
+            <li>
+              <Link to="/policies">Policies &amp; pickup</Link>
+            </li>
           </ul>
         </div>
 
         <div>
           <h2 className="eyebrow text-gold">Pickup</h2>
           <p className="mt-4 text-sm text-cocoa-foreground/80">
-            Etobicoke, Toronto, Ontario. Address shared once your date is confirmed.
-            Delivery fee by postal code, shown at checkout.
+            Etobicoke, Toronto, Ontario. Address shared once your date is confirmed. Delivery is $30
+            in Etobicoke or $35 in covered GTA postal zones.
           </p>
           <ul className="mt-5 flex gap-3">
             {SOCIALS.map(({ href, label, Icon }) => (
@@ -67,8 +82,8 @@ export function SiteFooter() {
       <div className="border-t border-cocoa-foreground/15">
         <p className="mx-auto max-w-[1200px] px-5 py-5 text-xs text-cocoa-foreground/50">
           © {new Date().getFullYear()} Wendy&rsquo;s Bakehouse — Cakes in Toronto. Not affiliated
-          with any restaurant chain of a similar name. Baked in a kitchen that handles wheat,
-          dairy, egg and nuts.
+          with any restaurant chain of a similar name. Baked in a kitchen that handles wheat, dairy,
+          egg and nuts.
         </p>
       </div>
     </footer>

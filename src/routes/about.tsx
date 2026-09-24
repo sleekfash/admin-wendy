@@ -47,18 +47,17 @@ function AboutPage() {
               made ahead and frozen.
             </p>
             <p className="mt-5 leading-relaxed text-muted-foreground">
-              Buttercream and ganache are the house strengths; fondant is available and takes
-              longer, which is why it is quoted separately. Bookings run by the month so that the
-              number of cakes leaving this kitchen stays honest.
+              Buttercream is the house finish; fondant covering is available as a clearly priced
+              extra. Sculpted fondant figures and models are not offered. Bookings run by the month
+              so that the number of cakes leaving this kitchen stays honest.
             </p>
 
             <div className="mt-10 flex items-start gap-4 rounded-lg border border-border bg-secondary p-6">
               <ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-gold" aria-hidden="true" />
               <p className="text-sm">
                 <strong className="block font-display text-lg">Certified Food Handler</strong>
-                Ontario food handler certification covers safe preparation, storage and
-                temperature control. It is why allergen questions get a straight answer rather
-                than a shrug.
+                Ontario food handler certification covers safe preparation, storage and temperature
+                control. It is why allergen questions get a straight answer rather than a shrug.
               </p>
             </div>
           </div>
@@ -87,9 +86,9 @@ function AboutPage() {
         </h2>
         <p className="mt-5 max-w-[64ch] text-cocoa-foreground/75">
           Nothing on this menu is a novelty item. The pies are hand-crimped and baked the morning
-          you collect them; the loaves come in six flavours and get cheaper by the loaf when you
-          order for a crowd. If you are ordering for a naming ceremony, an introduction or a
-          Sunday gathering, say so — the quantities and the timing are different, and I plan for it.
+          you collect them; the loaves come in butter, coconut, fruit and nut, and red velvet. If
+          you are ordering for a naming ceremony, an introduction or a Sunday gathering, say so —
+          the quantities and the timing are different, and I plan for it.
         </p>
       </Section>
 

@@ -72,7 +72,7 @@ function ProductPage() {
   };
 
   const waText = encodeURIComponent(
-    `Hi Wendy, I'd like to order: ${product.name} (${priceLabel(product)}). Could you send me a quote?`,
+    `Hi Wendy, I'd like to order: ${product.name} (${priceLabel(product)}). Could you confirm availability?`,
   );
 
   return (
@@ -140,23 +140,34 @@ function ProductPage() {
               <AccordionItem value="terms">
                 <AccordionTrigger>Ordering terms</AccordionTrigger>
                 <AccordionContent>
-                  Your date is held once the quote is agreed and payment is received. Bookings run
-                  by the month with a fixed pickup window.
+                  Everyday items are paid in full. Custom cakes require the deposit shown when
+                  ordering, with the balance due before pickup or delivery. Your date is held after
+                  payment is confirmed.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="pickup">
                 <AccordionTrigger>Pickup &amp; delivery</AccordionTrigger>
                 <AccordionContent>
                   Pickup is in Etobicoke, Toronto; the exact address is sent once your date is
-                  confirmed. Delivery across west Toronto is available for an additional fee,
-                  quoted by postcode.
+                  confirmed. Delivery is $30 in Etobicoke or $35 in covered GTA postal zones and is
+                  confirmed from your postal code at checkout.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="policies">
+                <AccordionTrigger>Full policies</AccordionTrigger>
+                <AccordionContent>
+                  Read the complete payment, pickup, delivery and allergen terms on the{" "}
+                  <Link to="/policies" className="font-semibold underline underline-offset-4">
+                    Policies page
+                  </Link>
+                  .
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="allergens">
                 <AccordionTrigger>Allergens</AccordionTrigger>
                 <AccordionContent>
-                  Baked in a single kitchen that handles wheat, dairy, egg and nuts, so cross-contact
-                  cannot be ruled out. Tell me about allergies when you order.
+                  Baked in a single kitchen that handles wheat, dairy, egg and nuts, so
+                  cross-contact cannot be ruled out. Tell me about allergies when you order.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

@@ -28,7 +28,7 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 /** Only these moves are allowed; anything else is rejected server-side. */
-const NEXT_STATUS: Record<string, OrderStatus[]> = {
+const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
   new: ["confirmed", "cancelled"],
   confirmed: ["baking", "cancelled"],
   baking: ["ready", "cancelled"],
@@ -37,10 +37,10 @@ const NEXT_STATUS: Record<string, OrderStatus[]> = {
   cancelled: [],
 };
 
-const NEXT_PAYMENT: Record<string, PaymentStatus[]> = {
+const NEXT_PAYMENT: Record<PaymentStatus, PaymentStatus[]> = {
   not_paid: ["pending_verification", "paid"],
   pending_verification: ["paid", "not_paid"],
-  pending: ["paid", "failed", "not_paid"],
+  pending: ["paid", "expired", "failed", "not_paid"],
   expired: ["not_paid", "paid"],
   failed: ["not_paid", "paid"],
   paid: ["refunded"],
@@ -48,11 +48,13 @@ const NEXT_PAYMENT: Record<string, PaymentStatus[]> = {
 };
 
 export function nextOrderStatuses(current: string): OrderStatus[] {
-  return NEXT_STATUS[current] ?? [];
+  return ORDER_STATUSES.includes(current as OrderStatus) ? NEXT_STATUS[current as OrderStatus] : [];
 }
 
 export function nextPaymentStatuses(current: string): PaymentStatus[] {
-  return NEXT_PAYMENT[current] ?? [];
+  return PAYMENT_STATUSES.includes(current as PaymentStatus)
+    ? NEXT_PAYMENT[current as PaymentStatus]
+    : [];
 }
 
 /** Human label for any lifecycle value. */

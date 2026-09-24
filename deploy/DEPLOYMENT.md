@@ -39,12 +39,23 @@ In the left sidebar open **SQL Editor**, then run these four files **in order**.
 Open each file from the `deploy/supabase/` folder of this project, copy the whole
 contents, paste it into a new query, and press **Run**.
 
-| Order | File | What it does |
-| --- | --- | --- |
-| 1 | `01-schema.sql` | Creates all the tables, security rules and functions |
-| 2 | `02-data.sql` | Loads your categories, products, options, prices and delivery zones |
-| 3 | `03-storage.sql` | Creates the private folders for product photos and payment slips |
-| 4 | `04-admin-user.sql` | Gives your login admin access — **run this one last, after the next step** |
+| Order | File                | What it does                                                               |
+| ----- | ------------------- | -------------------------------------------------------------------------- |
+| 1     | `01-schema.sql`     | Creates all the tables, security rules and functions                       |
+| 2     | `02-data.sql`       | Loads your categories, products, options, prices and delivery zones        |
+| 3     | `03-storage.sql`    | Creates the private folders for product photos and payment slips           |
+| 4     | `04-admin-user.sql` | Gives your login admin access — **run this one last, after the next step** |
+
+If you are upgrading an existing Wendy's Bakehouse database instead of creating
+a fresh project, run `05-cake-pricing.sql` and then rerun the idempotent
+`02-data.sql` seed. Do not rerun `01-schema.sql` over an existing database.
+
+> **Heads-up before rerunning `02-data.sql` on a live shop:** the seed restores
+> the canonical catalogue prices, payment rules and deposit percentages, and it
+> rebuilds the custom cake and cupcake option groups. Any price or option edits
+> made through the admin console for those products will be replaced by the
+> seeded values, so re-apply them afterwards. Orders and their stored snapshots
+> are never touched.
 
 ### Create your admin login
 
@@ -79,18 +90,18 @@ Left sidebar → **Project Settings** → **API**. Keep this tab open, you need:
 4. Open **Environment Variables** and add these eight, using the values you
    copied above (this list also lives in `.env.example`):
 
-   | Name | Value |
-   | --- | --- |
-   | `VITE_SUPABASE_URL` | your Project URL |
-   | `VITE_SUPABASE_PUBLISHABLE_KEY` | your publishable / anon key |
-   | `VITE_SUPABASE_PROJECT_ID` | your project reference ID |
-   | `SUPABASE_URL` | your Project URL |
-   | `SUPABASE_PUBLISHABLE_KEY` | your publishable / anon key |
-   | `SUPABASE_PROJECT_ID` | your project reference ID |
-   | `SUPABASE_SERVICE_ROLE_KEY` | your service_role key (secret) |
-   | `GOOGLE_MAPS_API_KEY` | only if you want distance-based delivery fees (see Part 5) |
-   | `STRIPE_SECRET_KEY` | only if you want card payments (see Part 6) |
-   | `STRIPE_WEBHOOK_SECRET` | only if you want card payments (see Part 6) |
+   | Name                            | Value                                                                  |
+   | ------------------------------- | ---------------------------------------------------------------------- |
+   | `VITE_SUPABASE_URL`             | your Project URL                                                       |
+   | `VITE_SUPABASE_PUBLISHABLE_KEY` | your publishable / anon key                                            |
+   | `VITE_SUPABASE_PROJECT_ID`      | your project reference ID                                              |
+   | `SUPABASE_URL`                  | your Project URL                                                       |
+   | `SUPABASE_PUBLISHABLE_KEY`      | your publishable / anon key                                            |
+   | `SUPABASE_PROJECT_ID`           | your project reference ID                                              |
+   | `SUPABASE_SERVICE_ROLE_KEY`     | your service_role key (secret)                                         |
+   | `GOOGLE_MAPS_API_KEY`           | not needed for the seeded fixed zones; only for a future distance mode |
+   | `STRIPE_SECRET_KEY`             | only if you want card payments (see Part 6)                            |
+   | `STRIPE_WEBHOOK_SECRET`         | only if you want card payments (see Part 6)                            |
 
 5. Click **Deploy** and wait a few minutes. You get a temporary address like
    `wendys-bakehouse.vercel.app`.
@@ -103,7 +114,8 @@ On the temporary Vercel address, walk through:
 
 - Home page, menu, and a product page — photos and prices show
 - Add something to the basket, go to checkout, choose **Pickup**
-- Place a bank-transfer order and upload any image as the slip
+- Place a bank-transfer order and upload a slip (JPG, PNG, WebP, HEIC or PDF) as
+  the payment evidence
 - Log in at `/auth` with your admin email, open `/admin`, and confirm the order
   appears with the right total and the slip attached
 - Delete that test order when you're happy
@@ -128,9 +140,9 @@ for this — Vercel serves the site.
 4. Wait for the padlock to appear in Vercel (minutes to a few hours). SSL is
    automatic and free.
 
-Delivery fees: the seeded delivery zones (Etobicoke, West Toronto,
-Mississauga/Brampton) work with no extra setup. Only the optional
-distance-based mode needs a Google Maps key — create one at
+Delivery fees: the seeded fixed zones charge $30 for Etobicoke postal prefixes
+and $35 for the configured GTA postal prefixes, with no extra setup. Only an
+optional future distance-based mode needs a Google Maps key — create one at
 https://console.cloud.google.com with the **Routes API** enabled, restrict it to
 your Vercel project, and add it as `GOOGLE_MAPS_API_KEY`.
 
@@ -146,7 +158,7 @@ this whenever you're ready. Bank transfer and WhatsApp are unaffected.
    it in Vercel as `STRIPE_SECRET_KEY`.
 3. **Developers** → **Webhooks** → **Add endpoint**:
    - URL: `https://YOUR-SITE/api/public/stripe-webhook`
-   - Events: `checkout.session.completed` and `checkout.session.expired`
+   - Events: `checkout.session.completed`, `checkout.session.expired`, and `charge.refunded`
 4. Copy the endpoint's **Signing secret** (`whsec_...`) and add it in Vercel as
    `STRIPE_WEBHOOK_SECRET`. Redeploy.
 5. Test with card `4242 4242 4242 4242`, any future expiry, any CVC. The order

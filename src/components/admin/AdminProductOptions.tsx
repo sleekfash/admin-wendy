@@ -15,6 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  isCustomCakeOptionGroup,
+  isCustomCakeProduct,
+  isCustomCakeRuleGroup,
+} from "@/lib/custom-cake-contract";
 
 function slugify(value: string): string {
   return value
@@ -58,6 +63,7 @@ export function AdminProductOptions({ productId }: { productId: string }) {
       key: string;
       label: string;
       required: boolean;
+      allow_multiple: boolean;
       available: boolean;
       sort_order: number;
     }) => saveGroup({ data: { ...input, product_id: productId } }),
@@ -105,6 +111,8 @@ export function AdminProductOptions({ productId }: { productId: string }) {
       {groups.map((g) => {
         const mine = choices.filter((c) => c.group_id === g.id);
         const draft = newChoice[g.id] ?? { label: "", price: "" };
+        const protectedGroup = isCustomCakeRuleGroup(g.id);
+        const protectedChoices = isCustomCakeOptionGroup(g.id);
         return (
           <div key={g.id} className="rounded-[0.75rem] border border-border p-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -117,6 +125,7 @@ export function AdminProductOptions({ productId }: { productId: string }) {
                     key: g.key,
                     label: e.target.value,
                     required: g.required,
+                    allow_multiple: g.allow_multiple,
                     available: g.available,
                     sort_order: g.sort_order,
                   })
@@ -125,12 +134,14 @@ export function AdminProductOptions({ productId }: { productId: string }) {
               <label className="flex items-center gap-2 text-sm">
                 <Switch
                   checked={g.required}
+                  disabled={protectedGroup}
                   onCheckedChange={(v) =>
                     groupMutation.mutate({
                       id: g.id,
                       key: g.key,
                       label: g.label,
                       required: v,
+                      allow_multiple: g.allow_multiple,
                       available: g.available,
                       sort_order: g.sort_order,
                     })
@@ -140,13 +151,33 @@ export function AdminProductOptions({ productId }: { productId: string }) {
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Switch
-                  checked={g.available}
+                  checked={g.allow_multiple}
+                  disabled={protectedGroup}
                   onCheckedChange={(v) =>
                     groupMutation.mutate({
                       id: g.id,
                       key: g.key,
                       label: g.label,
                       required: g.required,
+                      allow_multiple: v,
+                      available: g.available,
+                      sort_order: g.sort_order,
+                    })
+                  }
+                />
+                Multiple choices
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={g.available}
+                  disabled={protectedGroup}
+                  onCheckedChange={(v) =>
+                    groupMutation.mutate({
+                      id: g.id,
+                      key: g.key,
+                      label: g.label,
+                      required: g.required,
+                      allow_multiple: g.allow_multiple,
                       available: v,
                       sort_order: g.sort_order,
                     })
@@ -160,6 +191,7 @@ export function AdminProductOptions({ productId }: { productId: string }) {
                 variant="ghost"
                 className="ml-auto text-destructive"
                 aria-label={`Remove ${g.label}`}
+                disabled={protectedChoices}
                 onClick={() => {
                   if (confirm(`Remove "${g.label}" and its choices?`)) groupDelete.mutate(g.id);
                 }}
@@ -167,6 +199,12 @@ export function AdminProductOptions({ productId }: { productId: string }) {
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
+            {protectedChoices && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Custom-cake pricing option. Labels, prices and sold-out choices may change; its
+                choice list is protected.
+              </p>
+            )}
 
             <ul className="mt-3 space-y-2">
               {mine.map((c) => (
@@ -229,6 +267,7 @@ export function AdminProductOptions({ productId }: { productId: string }) {
                     variant="ghost"
                     className="text-destructive"
                     aria-label={`Remove ${c.label}`}
+                    disabled={protectedChoices}
                     onClick={() => choiceDelete.mutate(c.id)}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -237,89 +276,94 @@ export function AdminProductOptions({ productId }: { productId: string }) {
               ))}
             </ul>
 
-            <div className="mt-3 flex flex-wrap items-end gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">New choice</Label>
-                <Input
-                  className="max-w-[200px]"
-                  placeholder="10 inch"
-                  value={draft.label}
-                  onChange={(e) =>
-                    setNewChoice({ ...newChoice, [g.id]: { ...draft, label: e.target.value } })
-                  }
-                />
+            {!protectedChoices && (
+              <div className="mt-3 flex flex-wrap items-end gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">New choice</Label>
+                  <Input
+                    className="max-w-[200px]"
+                    placeholder="10 inch"
+                    value={draft.label}
+                    onChange={(e) =>
+                      setNewChoice({ ...newChoice, [g.id]: { ...draft, label: e.target.value } })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Extra cost (CAD)</Label>
+                  <Input
+                    className="w-28"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={draft.price}
+                    onChange={(e) =>
+                      setNewChoice({ ...newChoice, [g.id]: { ...draft, price: e.target.value } })
+                    }
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const key = slugify(draft.label);
+                    if (!key) {
+                      toast.error("Give the choice a name first.");
+                      return;
+                    }
+                    choiceMutation.mutate({
+                      group_id: g.id,
+                      key,
+                      label: draft.label.trim(),
+                      price_delta_cents: toCents(draft.price || "0"),
+                      available: true,
+                      sort_order: mine.length + 1,
+                    });
+                    setNewChoice({ ...newChoice, [g.id]: { label: "", price: "" } });
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> Add choice
+                </Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Extra cost (CAD)</Label>
-                <Input
-                  className="w-28"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={draft.price}
-                  onChange={(e) =>
-                    setNewChoice({ ...newChoice, [g.id]: { ...draft, price: e.target.value } })
-                  }
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const key = slugify(draft.label);
-                  if (!key) {
-                    toast.error("Give the choice a name first.");
-                    return;
-                  }
-                  choiceMutation.mutate({
-                    group_id: g.id,
-                    key,
-                    label: draft.label.trim(),
-                    price_delta_cents: toCents(draft.price || "0"),
-                    available: true,
-                    sort_order: mine.length + 1,
-                  });
-                  setNewChoice({ ...newChoice, [g.id]: { label: "", price: "" } });
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> Add choice
-              </Button>
-            </div>
+            )}
           </div>
         );
       })}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1">
-          <Label className="text-xs">New option group</Label>
-          <Input
-            className="max-w-[220px]"
-            placeholder="Cake size"
-            value={newGroup}
-            onChange={(e) => setNewGroup(e.target.value)}
-          />
+      {!isCustomCakeProduct(productId) && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">New option group</Label>
+            <Input
+              className="max-w-[220px]"
+              placeholder="Cake size"
+              value={newGroup}
+              onChange={(e) => setNewGroup(e.target.value)}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              const key = slugify(newGroup);
+              if (!key) {
+                toast.error("Give the group a name first.");
+                return;
+              }
+              groupMutation.mutate({
+                key,
+                label: newGroup.trim(),
+                required: true,
+                allow_multiple: false,
+                available: true,
+                sort_order: groups.length + 1,
+              });
+              setNewGroup("");
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> Add group
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            const key = slugify(newGroup);
-            if (!key) {
-              toast.error("Give the group a name first.");
-              return;
-            }
-            groupMutation.mutate({
-              key,
-              label: newGroup.trim(),
-              required: true,
-              available: true,
-              sort_order: groups.length + 1,
-            });
-            setNewGroup("");
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> Add group
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

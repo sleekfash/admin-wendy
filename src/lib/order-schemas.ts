@@ -23,10 +23,10 @@ export const SLIP_EXTENSIONS = {
 export const itemSchema = z.object({
   slug: z.string().min(1).max(120),
   quantity: z.number().int().min(1).max(99),
-  options: z.record(z.string().max(80), z.string().max(200)).default({}),
+  options: z.record(z.string().max(80), z.string().max(1000)).default({}),
   choices: z
     .array(z.object({ group_key: z.string().max(80), choice_key: z.string().max(80) }))
-    .max(10)
+    .max(30)
     .default([]),
   notes: z.string().trim().max(500).optional(),
 });
@@ -34,7 +34,10 @@ export const itemSchema = z.object({
 export const slipSchema = z.object({
   filename: z.string().trim().min(1).max(160),
   content_type: z.enum(SLIP_CONTENT_TYPES),
-  data_base64: z.string().min(1).max(Math.ceil((MAX_SLIP_BYTES * 4) / 3) + 1024),
+  data_base64: z
+    .string()
+    .min(1)
+    .max(Math.ceil((MAX_SLIP_BYTES * 4) / 3) + 1024),
 });
 
 /** Customer and fulfilment details, shared by every checkout method. */
@@ -42,7 +45,11 @@ export const customerFields = {
   customer_name: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(255).optional().or(z.literal("")),
   phone: z.string().trim().min(6).max(40),
-  pickup_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  pickup_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal("")),
   pickup_window: z.string().trim().max(60).optional(),
   fulfilment: z.enum(["pickup", "delivery"]),
   delivery_area: z.string().trim().max(160).optional(),
@@ -59,7 +66,11 @@ export const orderSchema = z.object({
   checkout_method: z.enum(["whatsapp", "bank_transfer"]),
   payer_name: z.string().trim().max(100).optional(),
   transfer_reference: z.string().trim().max(80).optional(),
-  transfer_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  transfer_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .or(z.literal("")),
   slip: slipSchema.optional(),
 });
 

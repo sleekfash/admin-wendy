@@ -61,7 +61,9 @@ export const placeOrder = createServerFn({ method: "POST" })
         // The order stands; it is simply flagged as missing evidence.
         await supabaseAdmin
           .from("orders")
-          .update({ notes: [data.notes, "[Payment slip upload failed]"].filter(Boolean).join("\n") })
+          .update({
+            notes: [data.notes, "[Payment slip upload failed]"].filter(Boolean).join("\n"),
+          })
           .eq("id", id);
       } else {
         slipUploaded = true;
@@ -82,8 +84,12 @@ export const placeOrder = createServerFn({ method: "POST" })
         name: l.name,
         quantity: l.quantity,
         pricing_mode: l.pricing_mode,
+        payment_rule: l.payment_rule,
         unit_price_cents: l.unit_price_cents,
+        line_total_cents: l.line_total_cents,
+        line_due_now_cents: l.line_due_now_cents,
         deposit_cents: l.deposit_cents,
+        deposit_percent: l.deposit_percent,
         options: l.options,
       })),
     };

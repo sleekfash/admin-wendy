@@ -28,6 +28,7 @@ export type ProductOptionGroup = {
   key: string;
   label: string;
   required: boolean;
+  allow_multiple: boolean;
   choices: ProductOptionChoice[];
 };
 
@@ -41,6 +42,7 @@ export type ShopProduct = {
   pricing_mode: PricingMode;
   price_cents: number | null;
   deposit_cents: number | null;
+  deposit_percent: number | null;
   price_note: string | null;
   price_band: string | null;
   lead_time: string;
@@ -114,14 +116,15 @@ export function priceLabel(p: {
   options?: ProductOptionGroup[];
 }): string {
   if (p.price_cents == null) return "Ask for a price";
-  const hasUpgrades = (p.options ?? []).some((g) =>
-    g.choices.some((c) => c.price_delta_cents > 0),
-  );
+  const hasUpgrades = (p.options ?? []).some((g) => g.choices.some((c) => c.price_delta_cents > 0));
   return `${hasUpgrades ? "From " : ""}${formatMoney(p.price_cents)}`;
 }
 
 /** "12 pies per pack" style label, when the product is sold by the pack. */
-export function packLabel(p: { pack_size: number | null; pack_unit: string | null }): string | null {
+export function packLabel(p: {
+  pack_size: number | null;
+  pack_unit: string | null;
+}): string | null {
   if (!p.pack_size) return null;
   return `${p.pack_size} ${p.pack_unit ?? "pieces"} per pack`;
 }
@@ -148,7 +151,13 @@ export async function fetchCatalog(): Promise<{
     const choices = choicesByGroup.get(g.id) ?? [];
     if (choices.length === 0) continue;
     const list = groupsByProduct.get(g.product_id) ?? [];
-    list.push({ key: g.key, label: g.label, required: g.required, choices });
+    list.push({
+      key: g.key,
+      label: g.label,
+      required: g.required,
+      allow_multiple: g.allow_multiple,
+      choices,
+    });
     groupsByProduct.set(g.product_id, list);
   }
 
@@ -172,6 +181,7 @@ export async function fetchCatalog(): Promise<{
       pricing_mode: p.pricing_mode as PricingMode,
       price_cents: p.price_cents,
       deposit_cents: p.deposit_cents,
+      deposit_percent: p.deposit_percent,
       price_note: p.price_note,
       price_band: p.price_band,
       lead_time: p.lead_time,

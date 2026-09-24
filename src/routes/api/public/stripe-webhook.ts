@@ -1,10 +1,82 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { nextOrderStatuses, nextPaymentStatuses } from "@/lib/order-status";
+
+type StripeOrder = {
+  id: string;
+  status: string;
+  payment_status: string;
+  payment_provider: string | null;
+  stripe_session_id: string | null;
+};
+
+type StripeOrderPatch = {
+  status?: string;
+  payment_status: string;
+  payment_reference?: string | null;
+  stripe_payment_intent_id?: string | null;
+  paid_at?: string;
+};
+
+function planCheckoutUpdate(
+  order: StripeOrder,
+  eventType: "checkout.session.completed" | "checkout.session.expired",
+  session: import("stripe").Stripe.Checkout.Session,
+  paidAt: string,
+): StripeOrderPatch | null {
+  if (eventType === "checkout.session.expired") {
+    if (order.payment_status !== "pending") return null;
+    if (!nextPaymentStatuses(order.payment_status).includes("expired")) {
+      throw new Error(`Invalid payment transition from ${order.payment_status} to expired.`);
+    }
+    return { payment_status: "expired" };
+  }
+
+  if (session.payment_status !== "paid") return null;
+  if (order.payment_status === "paid" || order.payment_status === "refunded") return null;
+  if (!nextPaymentStatuses(order.payment_status).includes("paid")) {
+    throw new Error(`Invalid payment transition from ${order.payment_status} to paid.`);
+  }
+
+  const intent =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : (session.payment_intent?.id ?? null);
+  const patch: StripeOrderPatch = {
+    payment_status: "paid",
+    payment_reference: intent,
+    stripe_payment_intent_id: intent,
+    paid_at: paidAt,
+  };
+
+  if (order.status === "new") {
+    if (!nextOrderStatuses(order.status).includes("confirmed")) {
+      throw new Error(`Invalid order transition from ${order.status} to confirmed.`);
+    }
+    patch.status = "confirmed";
+  }
+
+  return patch;
+}
+
+function planRefundUpdate(order: StripeOrder): StripeOrderPatch | null {
+  if (order.payment_status === "refunded") return null;
+  if (order.payment_status !== "paid") {
+    // Stripe can deliver related event types out of order. A 500 makes it retry
+    // after checkout.session.completed has persisted the paid transition.
+    throw new Error(`Refund arrived while payment was ${order.payment_status}.`);
+  }
+  if (!nextPaymentStatuses(order.payment_status).includes("refunded")) {
+    throw new Error(`Invalid payment transition from ${order.payment_status} to refunded.`);
+  }
+  return { payment_status: "refunded" };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
- * Stripe tells us here when a card payment succeeds or expires. This — not the
- * customer's return trip to the site — is what marks an order paid, so a closed
- * tab can never lose a paid order. Nothing is trusted before the signature is
- * verified.
+ * Stripe tells us here when a card payment succeeds, expires, or is fully
+ * refunded. This — not the customer's return trip to the site — owns payment
+ * state, so a closed tab can never lose a provider-confirmed transition.
  */
 export const Route = createFileRoute("/api/public/stripe-webhook")({
   server: {
@@ -36,61 +108,124 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
 
         if (
           event.type !== "checkout.session.completed" &&
-          event.type !== "checkout.session.expired"
+          event.type !== "checkout.session.expired" &&
+          event.type !== "charge.refunded"
         ) {
           return new Response("ignored", { status: 200 });
         }
 
-        const session = event.data.object as import("stripe").Stripe.Checkout.Session;
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        // Matching on the session id keeps this idempotent: a replayed event
-        // simply rewrites the same row with the same values.
-        const { data: order } = await supabaseAdmin
-          .from("orders")
-          .select("id, payment_status, due_now_cents")
-          .eq("stripe_session_id", session.id)
-          .maybeSingle();
-
-        if (!order) return new Response("unknown session", { status: 200 });
-
-        // Defense in depth: even a genuinely-signed Stripe event must match the
-        // amount our own pricing engine calculated for this order, in CAD. A
-        // mismatch is never marked paid — it stays pending for human review.
-        if (event.type === "checkout.session.completed") {
-          const amountOk =
-            session.amount_total === order.due_now_cents &&
-            (session.currency ?? "").toLowerCase() === "cad";
-          if (!amountOk) return new Response("amount mismatch", { status: 400 });
+        const paidAt = new Date(event.created * 1000).toISOString();
+        const session =
+          event.type === "charge.refunded"
+            ? null
+            : (event.data.object as import("stripe").Stripe.Checkout.Session);
+        const charge =
+          event.type === "charge.refunded"
+            ? (event.data.object as import("stripe").Stripe.Charge)
+            : null;
+        if (charge && !charge.refunded) {
+          return new Response("partial refund ignored", { status: 200 });
         }
 
-        if (event.type === "checkout.session.expired") {
-          if (order.payment_status === "paid") return new Response("ok", { status: 200 });
-          await supabaseAdmin
-            .from("orders")
-            .update({ payment_status: "expired" })
-            .eq("id", order.id);
-          return new Response("ok", { status: 200 });
+        const intent = charge
+          ? typeof charge.payment_intent === "string"
+            ? charge.payment_intent
+            : (charge.payment_intent?.id ?? null)
+          : null;
+        const metadataOrderId = charge?.metadata?.["order_id"] ?? null;
+        const objectId = session?.id ?? charge?.id ?? "unknown";
+
+        try {
+          // Optimistic filters make duplicate and out-of-order deliveries safe.
+          // One re-read resolves a concurrent admin or webhook update.
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            let order: StripeOrder | null = null;
+
+            if (session) {
+              const result = await supabaseAdmin
+                .from("orders")
+                .select("id, status, payment_status, payment_provider, stripe_session_id")
+                .eq("stripe_session_id", session.id)
+                .maybeSingle();
+              if (result.error) throw result.error;
+              order = result.data;
+            } else {
+              if (intent) {
+                const result = await supabaseAdmin
+                  .from("orders")
+                  .select("id, status, payment_status, payment_provider, stripe_session_id")
+                  .eq("stripe_payment_intent_id", intent)
+                  .maybeSingle();
+                if (result.error) throw result.error;
+                order = result.data;
+              }
+
+              // PaymentIntent metadata is copied to the Charge and lets an
+              // out-of-order refund find the order before completion is stored.
+              if (!order && metadataOrderId && UUID_PATTERN.test(metadataOrderId)) {
+                const result = await supabaseAdmin
+                  .from("orders")
+                  .select("id, status, payment_status, payment_provider, stripe_session_id")
+                  .eq("id", metadataOrderId)
+                  .maybeSingle();
+                if (result.error) throw result.error;
+                order = result.data;
+              }
+            }
+
+            if (!order) {
+              console.warn("stripe webhook could not find its order", {
+                eventId: event.id,
+                eventType: event.type,
+                objectId,
+              });
+              return new Response("unknown session", { status: 200 });
+            }
+            if (charge && order.payment_provider !== "stripe" && !order.stripe_session_id) {
+              console.warn("stripe refund did not match a card order", {
+                eventId: event.id,
+                objectId,
+                orderId: order.id,
+              });
+              return new Response("unknown payment", { status: 200 });
+            }
+
+            let patch: StripeOrderPatch | null;
+            if (event.type === "charge.refunded") {
+              patch = planRefundUpdate(order);
+            } else {
+              patch = planCheckoutUpdate(
+                order,
+                event.type,
+                event.data.object as import("stripe").Stripe.Checkout.Session,
+                paidAt,
+              );
+            }
+            if (!patch) return new Response("ok", { status: 200 });
+
+            const { data: updated, error: updateError } = await supabaseAdmin
+              .from("orders")
+              .update(patch)
+              .eq("id", order.id)
+              .eq("status", order.status)
+              .eq("payment_status", order.payment_status)
+              .select("id")
+              .maybeSingle();
+            if (updateError) throw updateError;
+            if (updated) return new Response("ok", { status: 200 });
+          }
+
+          throw new Error("The order changed repeatedly while processing the event.");
+        } catch (error) {
+          console.error("stripe webhook persistence failed", {
+            eventId: event.id,
+            eventType: event.type,
+            objectId,
+            error,
+          });
+          return new Response("Temporary persistence failure", { status: 500 });
         }
-
-        const paid = session.payment_status === "paid";
-        const intent =
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : (session.payment_intent?.id ?? null);
-
-        await supabaseAdmin
-          .from("orders")
-          .update({
-            payment_status: paid ? "paid" : "pending",
-            payment_reference: intent,
-            stripe_payment_intent_id: intent,
-            paid_at: paid ? new Date().toISOString() : null,
-            ...(paid ? { status: "confirmed" } : {}),
-          })
-          .eq("id", order.id);
-
-        return new Response("ok", { status: 200 });
       },
     },
   },

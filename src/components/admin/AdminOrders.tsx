@@ -160,7 +160,10 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as OrderStatus | "all")}
+        >
           <SelectTrigger className="w-40" aria-label="Filter by order status">
             <SelectValue />
           </SelectTrigger>
@@ -217,8 +220,15 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
             <TableBody>
               {visible.map((o) => {
                 const busy = mutate.isPending && pendingId === o.id;
-                const statusMoves = nextOrderStatuses(o.status);
-                const paymentMoves = nextPaymentStatuses(o.payment_status);
+                const stripeManaged =
+                  o.payment_provider === "stripe" || o.stripe_session_id != null;
+                const statusMoves =
+                  stripeManaged && o.payment_status === "pending"
+                    ? []
+                    : nextOrderStatuses(o.status);
+                const paymentMoves: PaymentStatus[] = stripeManaged
+                  ? []
+                  : nextPaymentStatuses(o.payment_status);
                 return (
                   <TableRow key={o.id} className={busy ? "opacity-60" : undefined}>
                     <TableCell className="font-medium">{o.reference}</TableCell>
@@ -379,9 +389,7 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                             </span>
                           )}
                       </span>
-                      <span className="shrink-0">
-                        {formatMoney(item.line_total_cents)}
-                      </span>
+                      <span className="shrink-0">{formatMoney(item.line_total_cents)}</span>
                     </li>
                   ))}
                 </ul>
@@ -392,7 +400,10 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                   </p>
                   {selected.delivery_fee_cents > 0 && (
                     <p className="flex justify-between">
-                      <span>Delivery{selected.delivery_postal_code ? ` · ${selected.delivery_postal_code}` : ""}</span>
+                      <span>
+                        Delivery
+                        {selected.delivery_postal_code ? ` · ${selected.delivery_postal_code}` : ""}
+                      </span>
                       <span>{formatMoney(selected.delivery_fee_cents)}</span>
                     </p>
                   )}
@@ -418,8 +429,7 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                   <h3 className="eyebrow text-muted-foreground">Card payment</h3>
                   <p className="mt-2">Stripe reference: {selected.payment_reference ?? "—"}</p>
                   <p>
-                    Paid at:{" "}
-                    {selected.paid_at ? new Date(selected.paid_at).toLocaleString() : "—"}
+                    Paid at: {selected.paid_at ? new Date(selected.paid_at).toLocaleString() : "—"}
                   </p>
                   <p className="mt-2 text-muted-foreground">
                     Refunds are handled in your Stripe dashboard.
