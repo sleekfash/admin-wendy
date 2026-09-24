@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck, MapPin, Clock, Sparkles } from "lucide-react";
-import heroArtwork from "@/assets/brand/wendys-billboard.jpeg.asset.json";
-import reviewArtwork from "@/assets/customer-review.png.asset.json";
+import heroArtwork from "@/assets/hero-cake.jpg";
+import reviewArtwork from "@/assets/cupcakes.jpg";
 import { BUSINESS } from "@/data/catalog";
 import {
   CtaBand,
@@ -71,8 +71,8 @@ function Index() {
               aria-hidden="true"
             />
             <img
-              src={heroArtwork.url}
-              alt="Wendy's Bakehouse custom cakes billboard featuring a pink leopard-print celebration cake"
+              src={heroArtwork}
+              alt="Wendy's Bakehouse custom celebration cake"
               className="relative aspect-[5/4] w-full rounded-[1.35rem] border border-gold/45 object-cover shadow-2xl"
             />
           </div>
@@ -199,8 +199,8 @@ function Index() {
         <div className="grid items-center gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
             <SmartImage
-              src={reviewArtwork.url}
-              alt="Customer review messages praising Wendy's Bakehouse vanilla and red velvet cake"
+              src={reviewArtwork}
+              alt="A box of Wendy's Bakehouse cupcakes"
               ratio="aspect-square"
             />
           </div>

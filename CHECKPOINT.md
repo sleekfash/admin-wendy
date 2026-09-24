@@ -76,9 +76,7 @@ Supabase project after human-assisted authentication.
 - Repository-wide `bun run lint` still fails on pre-existing Prettier errors in
   untouched/generated files; targeted changed-file lint is clean.
 
-## Supabase deployment - DONE (fresh install)
-
-- **Project**: `wendys-admin` (ref `rrgusprzsfdmlzsnjixz`, org `sleekfash`,
+## Supabase deployment - DONE (fresh install)- **Project**: `wendys-admin` (ref `rrgusprzsfdmlzsnjixz`, org `sleekfash`,
   region `ca-central-1`, ACTIVE_HEALTHY). It was empty, so the **fresh-install
   path** was used: `01-schema.sql` → `02-data.sql` → `03-storage.sql` →
   `04-admin-user.sql`, all applied via the session pooler (postgres.js) with the
@@ -97,6 +95,21 @@ Supabase project after human-assisted authentication.
   `C:\Users\HP\AppData\Local\Temp\opencode\.env.lovable-backup`.
 - Temp credential files (PAT, DB password, admin password, API keys) were
   deleted after use.
+- **Live pricing smoke test passed** (app's own `priceCart` against the new DB):
+  8-inch 3-layer cake $250 → $175 due now / $75 balance; + 12-pack cupcakes $60
+  in full; mixed basket $310 → $235 due now; Etobicoke delivery +$30; the $130
+  buttercream minimum correctly rejects a 6-inch 1-layer cake.
+
+## GitHub push - DONE
+
+- Workspace changes were overlaid onto a fresh clone of
+  `github.com/sleekfash/admin-wendy` and pushed to `main` as commit `3546e7b`
+  ("Cake pricing rollout, Stripe hardening, and admin protections", 59 files).
+- `.env` was tracked on GitHub with old Lovable values; this commit removes it
+  from tracking and `.gitignore` now excludes `.env` / `.env.*`.
+- `supabase/config.toml` now points at the new project ref
+  `rrgusprzsfdmlzsnjixz`. A staging clone remains at
+  `C:\Users\HP\AppData\Local\Temp\opencode\admin-wendy-gh`.
 
 ## Remaining (owner actions)
 

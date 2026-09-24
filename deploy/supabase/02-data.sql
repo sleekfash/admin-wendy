@@ -11,7 +11,7 @@ INSERT INTO public.categories (
   (
     '382b2742-6d74-4a4c-9a1f-dabaf5755a2d', 'celebration-cakes', 'Custom cakes',
     'Custom buttercream and fondant cakes with every base size and design extra priced upfront.',
-    NULL, '/__l5e/assets-v1/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg', 1, true
+    'hero-cake', NULL, 1, true
   ),
   (
     'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d501', 'cupcakes', 'Cupcakes',
@@ -26,7 +26,7 @@ INSERT INTO public.categories (
   (
     '6044569e-55de-4f3a-a13c-3db4db2a6b3c', 'drinks', 'Drinks',
     'Bottled party drinks mixed to order for your celebration.',
-    NULL, '/__l5e/assets-v1/2ab7ecbb-e7e0-4605-ba90-54cca87db4c6/cake-10.jpg', 4, true
+    NULL, NULL, 4, true
   ),
   (
     'c1a00f1c-148e-4241-a67d-b8df36f6ec86', 'pastries', 'Pastries',
@@ -56,8 +56,8 @@ INSERT INTO public.products (
     'Choose one of nine size-and-layer combinations, then add only the design details you want. Tiered cakes combine full three-layer cakes in different sizes. Fondant sculpted figures and models are not offered.',
     'deposit', 7000, NULL, 70,
     NULL,
-    NULL, '2 weeks', 'Varies by size', NULL,
-    '/__l5e/assets-v1/1ff870a8-e858-4e2d-aa7b-236d25187c2f/cake-6.jpg',
+    NULL, '2 weeks', 'Varies by size', 'hero-cake',
+    NULL,
     '[]', '["Cake board and box", "Chosen base cake", "Itemised design total"]',
     true, 1, 'available', 'deposit', NULL, NULL
   ),
@@ -85,7 +85,7 @@ INSERT INTO public.products (
     '$25 per bottle, mixed to order.',
     'Bottled party cocktails mixed to order - chapman, zobo punch or a classic rum punch.',
     'fixed', 2500, NULL, NULL, NULL, NULL, '3 days', NULL, NULL,
-    '/__l5e/assets-v1/2ab7ecbb-e7e0-4605-ba90-54cca87db4c6/cake-10.jpg',
+    NULL,
     '[]', '["750ml bottle"]', true, 4, 'available', 'full', NULL, NULL
   ),
   (
