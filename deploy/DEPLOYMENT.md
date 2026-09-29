@@ -48,7 +48,9 @@ contents, paste it into a new query, and press **Run**.
 
 If you are upgrading an existing Wendy's Bakehouse database instead of creating
 a fresh project, run `05-cake-pricing.sql` and then rerun the idempotent
-`02-data.sql` seed. Do not rerun `01-schema.sql` over an existing database.
+`02-data.sql` seed. Run `06-product-image-storage.sql` once to apply the private
+product-image bucket limits. Do not rerun `01-schema.sql` over an existing
+database.
 
 > **Heads-up before rerunning `02-data.sql` on a live shop:** the seed restores
 > the canonical catalogue prices, payment rules and deposit percentages, and it
@@ -56,6 +58,29 @@ a fresh project, run `05-cake-pricing.sql` and then rerun the idempotent
 > made through the admin console for those products will be replaced by the
 > seeded values, so re-apply them afterwards. Orders and their stored snapshots
 > are never touched.
+
+### Upload the custom cake gallery
+
+The gallery photos are Storage objects, so the SQL files cannot install them.
+In Supabase open **Storage** -> `product-images`, create a `custom-cakes` folder,
+and upload the files from this project's `wendyimg/` folder with these exact
+object names:
+
+| Local file              | Storage object name   |
+| ----------------------- | --------------------- |
+| `wendys cakes (1).jpg`  | `cake-example-01.jpg` |
+| `wendys cakes (2).jpg`  | `cake-example-02.jpg` |
+| `wendys cakes (3).jpg`  | `cake-example-03.jpg` |
+| `wendys cakes (4).jpg`  | `cake-example-04.jpg` |
+| `wendys cakes (5).jpg`  | `cake-example-05.jpg` |
+| `wendys cakes (6).jpg`  | `cake-example-06.jpg` |
+| `wendys cakes (7).jpg`  | `cake-example-07.jpg` |
+| `wendys cakes (8).jpg`  | `cake-example-08.jpg` |
+| `wendys cakes (9).jpg`  | `cake-example-09.jpg` |
+| `wendys cakes (10).jpg` | `cake-example-10.jpg` |
+
+Keep the bucket private. The storefront serves these objects through
+`/api/public/product-image/*`; do not create public Storage URLs.
 
 ### Create your admin login
 

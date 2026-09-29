@@ -3,6 +3,8 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { PageHeader, Section } from "@/components/site/Bits";
 import { useCart } from "@/lib/cart";
 import { formatMoney, imageSrc } from "@/lib/shop";
+import { CustomCakeMark } from "@/components/site/CakeArtwork";
+import { isCustomCakeCartItem } from "@/lib/custom-cake-contract";
 
 const TITLE = "Your basket — Wendy's Bakehouse, Cakes in Toronto";
 const DESC =
@@ -56,11 +58,19 @@ function CartPage() {
                     key={`${item.slug}-${i}`}
                     className="flex gap-4 rounded-[1.5rem] border border-border bg-card p-4"
                   >
-                    <img
-                      src={imageSrc(item)}
-                      alt=""
-                      className="h-24 w-24 shrink-0 rounded-[1.15rem] object-cover"
-                    />
+                    {isCustomCakeCartItem(item) ? (
+                      <CustomCakeMark className="h-24 w-24" />
+                    ) : (
+                      <img
+                        src={imageSrc(item)}
+                        alt=""
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = imageSrc({ image_key: item.image_key ?? null });
+                        }}
+                        className="h-24 w-24 shrink-0 rounded-[1.15rem] object-cover"
+                      />
+                    )}
                     <div className="flex-1">
                       <h2 className="font-display text-lg">{item.name}</h2>
                       {Object.entries(item.options).length > 0 && (

@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart";
 import { formatMoney, imageSrc } from "@/lib/shop";
+import { CustomCakeMark } from "@/components/site/CakeArtwork";
+import { isCustomCakeCartItem } from "@/lib/custom-cake-contract";
 
 export function CartDrawer({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -67,11 +69,19 @@ export function CartDrawer({ className = "" }: { className?: string }) {
                     key={`${item.slug}-${i}`}
                     className="flex gap-3 rounded-[1rem] border border-border p-3"
                   >
-                    <img
-                      src={imageSrc(item)}
-                      alt=""
-                      className="h-16 w-16 shrink-0 rounded-[0.75rem] object-cover"
-                    />
+                    {isCustomCakeCartItem(item) ? (
+                      <CustomCakeMark className="h-16 w-16" />
+                    ) : (
+                      <img
+                        src={imageSrc(item)}
+                        alt=""
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = imageSrc({ image_key: item.image_key ?? null });
+                        }}
+                        className="h-16 w-16 shrink-0 rounded-[0.75rem] object-cover"
+                      />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-display text-base">{item.name}</p>
                       {Object.entries(item.options).length > 0 && (

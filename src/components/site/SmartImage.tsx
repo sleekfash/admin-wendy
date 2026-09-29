@@ -10,6 +10,7 @@ type Props = {
   ratio?: string;
   rounded?: string;
   priority?: boolean;
+  fit?: "cover" | "contain";
 };
 
 /** Image inside a fixed-ratio box with a skeleton while it loads. */
@@ -20,6 +21,7 @@ export function SmartImage({
   ratio = "aspect-[4/3]",
   rounded = "rounded-[1.15rem]",
   priority = false,
+  fit = "cover",
 }: Props) {
   const [loaded, setLoaded] = useState(false);
 
@@ -34,7 +36,8 @@ export function SmartImage({
         onLoad={() => setLoaded(true)}
         onError={() => setLoaded(true)}
         className={cn(
-          "h-full w-full object-cover transition-opacity duration-500",
+          "h-full w-full transition-opacity duration-500",
+          fit === "contain" ? "object-contain" : "object-cover",
           loaded ? "opacity-100" : "opacity-0",
         )}
       />

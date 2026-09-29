@@ -4,6 +4,8 @@ import { MessageCircle } from "lucide-react";
 import { BUSINESS } from "@/data/catalog";
 import { imageSrc, priceLabel, type ShopProduct } from "@/lib/shop";
 import { SmartImage } from "@/components/site/SmartImage";
+import { CustomCakeTile } from "@/components/site/CakeArtwork";
+import { isCustomCakeProduct } from "@/lib/custom-cake-contract";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function Section({
@@ -16,11 +18,7 @@ export function Section({
   tone?: "cream" | "sand" | "cocoa";
 }) {
   const bg =
-    tone === "cocoa"
-      ? "bg-cocoa text-cocoa-foreground"
-      : tone === "sand"
-        ? "bg-secondary"
-        : "";
+    tone === "cocoa" ? "bg-cocoa text-cocoa-foreground" : tone === "sand" ? "bg-secondary" : "";
   return (
     <section className={`${bg} ${className}`}>
       <div className="mx-auto max-w-[1200px] px-5 py-16 md:py-24">{children}</div>
@@ -64,12 +62,16 @@ export function ProductCard({ product }: { product: ShopProduct }) {
         tabIndex={-1}
         aria-hidden="true"
       >
-        <SmartImage
-          src={imageSrc(product)}
-          alt={product.name}
-          ratio="aspect-square"
-          className="transition-transform duration-300 group-hover:scale-[1.03]"
-        />
+        {isCustomCakeProduct(product.id) ? (
+          <CustomCakeTile className="transition-transform duration-300 group-hover:scale-[1.03]" />
+        ) : (
+          <SmartImage
+            src={imageSrc(product)}
+            alt={product.name}
+            ratio="aspect-square"
+            className="transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        )}
       </Link>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-xl">
@@ -100,8 +102,6 @@ export function ProductCardSkeleton() {
     </div>
   );
 }
-
-
 export function CtaBand() {
   return (
     <section className="bg-primary text-primary-foreground">
@@ -134,4 +134,3 @@ export function CtaBand() {
     </section>
   );
 }
-

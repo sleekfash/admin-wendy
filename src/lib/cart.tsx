@@ -13,6 +13,8 @@ import type { PricingMode } from "@/lib/shop";
 import { previewCart } from "@/lib/orders.functions";
 
 export type CartItem = {
+  /** Optional for carts persisted before stable product IDs were stored. */
+  product_id?: string;
   slug: string;
   name: string;
   quantity: number;

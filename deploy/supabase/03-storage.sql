@@ -1,10 +1,22 @@
 -- Wendy's Bakehouse — file storage (private buckets for product images and payment slips)
 -- Run this THIRD, after 02-data.sql.
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'product-images',
+  'product-images',
+  false,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', false),
-       ('payment-slips', 'payment-slips', false)
-on conflict (id) do nothing;
+values ('payment-slips', 'payment-slips', false)
+on conflict (id) do update set public = excluded.public;
 
 -- Product images: admins only. Public pages read them through the app's own
 -- image endpoint (/api/public/product-image/*), never straight from storage.

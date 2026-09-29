@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck, MapPin, Clock, Sparkles } from "lucide-react";
-import heroArtwork from "@/assets/hero-cake.jpg";
+import { Clock, CupSoda, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import heroArtwork from "@/assets/hero.jpg";
 import reviewArtwork from "@/assets/cupcakes.jpg";
 import { BUSINESS } from "@/data/catalog";
+import { CustomCakeMontage, CustomCakeTile } from "@/components/site/CakeArtwork";
 import {
   CtaBand,
   Eyebrow,
@@ -66,15 +67,17 @@ function Index() {
       <section className="relative bg-cocoa text-cocoa-foreground">
         <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-14 md:grid-cols-12 md:items-center md:py-20">
           <div className="relative md:order-2 md:col-span-6">
-            <div
-              className="absolute -inset-2 rounded-[1.65rem] border border-gold/35 bg-cocoa-blush/15 blur-sm"
-              aria-hidden="true"
-            />
-            <img
-              src={heroArtwork}
-              alt="Wendy's Bakehouse custom celebration cake"
-              className="relative aspect-[5/4] w-full rounded-[1.35rem] border border-gold/45 object-cover shadow-2xl"
-            />
+            <div className="relative mx-auto w-full max-w-[496px]">
+              <div
+                className="absolute -inset-2 rounded-[1.65rem] border border-gold/35 bg-cocoa-blush/15 blur-sm"
+                aria-hidden="true"
+              />
+              <img
+                src={heroArtwork}
+                alt="Wendy's Bakehouse custom celebration cake"
+                className="relative aspect-[5/4] w-full rounded-[1.35rem] border border-gold/45 object-cover shadow-2xl"
+              />
+            </div>
           </div>
           <div className="md:order-1 md:col-span-6">
             <Eyebrow>Now booking {BUSINESS.bookingMonth}</Eyebrow>
@@ -127,12 +130,24 @@ function Index() {
               search={{ category: c.slug }}
               className="group overflow-hidden rounded-[1.5rem] border border-border bg-card p-2"
             >
-              <SmartImage
-                src={categoryImage(c, products)}
-                alt={c.name}
-                ratio="aspect-[4/3]"
-                className="transition-transform duration-300 group-hover:scale-[1.03]"
-              />
+              {c.slug === "celebration-cakes" ? (
+                <CustomCakeMontage className="transition-transform duration-300 group-hover:scale-[1.03]" />
+              ) : c.slug === "drinks" ? (
+                <CustomCakeTile
+                  label={c.name}
+                  icon={CupSoda}
+                  description="Ask about today's available drinks"
+                  className="transition-transform duration-300 group-hover:scale-[1.03]"
+                  ratio="aspect-[4/3]"
+                />
+              ) : (
+                <SmartImage
+                  src={categoryImage(c, products)}
+                  alt={c.name}
+                  ratio="aspect-[4/3]"
+                  className="transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+              )}
               <div className="p-5">
                 <h3 className="font-display text-xl group-hover:text-primary">{c.name}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{c.blurb}</p>

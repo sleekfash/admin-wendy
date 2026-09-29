@@ -4,6 +4,8 @@ import { BUSINESS } from "@/data/catalog";
 import { CtaBand, ProductCard, Section } from "@/components/site/Bits";
 import { AddToBasket } from "@/components/site/AddToBasket";
 import { SmartImage } from "@/components/site/SmartImage";
+import { CakeGallery } from "@/components/site/CakeArtwork";
+import { isCustomCakeProduct } from "@/lib/custom-cake-contract";
 import { catalogQueryOptions, imageSrc, priceLabel, type ShopProduct } from "@/lib/shop";
 
 import {
@@ -89,13 +91,17 @@ function ProductPage() {
         <div className="grid gap-10 py-10 md:grid-cols-12 md:py-14">
           <div className="md:col-span-6">
             <div className="md:sticky md:top-28">
-              <SmartImage
-                src={imageSrc(product)}
-                alt={product.name}
-                ratio="aspect-square"
-                rounded="rounded-[1.75rem]"
-                priority
-              />
+              {isCustomCakeProduct(product.id) ? (
+                <CakeGallery />
+              ) : (
+                <SmartImage
+                  src={imageSrc(product)}
+                  alt={product.name}
+                  ratio="aspect-square"
+                  rounded="rounded-[1.75rem]"
+                  priority
+                />
+              )}
             </div>
           </div>
 

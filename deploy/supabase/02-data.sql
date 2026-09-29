@@ -11,7 +11,7 @@ INSERT INTO public.categories (
   (
     '382b2742-6d74-4a4c-9a1f-dabaf5755a2d', 'celebration-cakes', 'Custom cakes',
     'Custom buttercream and fondant cakes with every base size and design extra priced upfront.',
-    'hero-cake', NULL, 1, true
+    NULL, 'storage:custom-cakes/cake-example-04.jpg', 1, true
   ),
   (
     'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d501', 'cupcakes', 'Cupcakes',
@@ -56,8 +56,8 @@ INSERT INTO public.products (
     'Choose one of nine size-and-layer combinations, then add only the design details you want. Tiered cakes combine full three-layer cakes in different sizes. Fondant sculpted figures and models are not offered.',
     'deposit', 7000, NULL, 70,
     NULL,
-    NULL, '2 weeks', 'Varies by size', 'hero-cake',
-    NULL,
+    NULL, '2 weeks', 'Varies by size', NULL,
+    'storage:custom-cakes/cake-example-04.jpg',
     '[]', '["Cake board and box", "Chosen base cake", "Itemised design total"]',
     true, 1, 'available', 'deposit', NULL, NULL
   ),

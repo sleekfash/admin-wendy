@@ -200,6 +200,7 @@ export function AddToBasket({ slug }: { slug: string }) {
             }
 
             add({
+              product_id: product.id,
               slug: product.slug,
               name: product.name,
               quantity,

@@ -35,6 +35,19 @@ async function admin() {
   return supabaseAdmin as unknown as SupabaseClient<AppDatabase>;
 }
 
+async function deleteUnreferencedProductImage(
+  db: SupabaseClient<AppDatabase>,
+  imageUrl: string | null,
+): Promise<void> {
+  if (!imageUrl?.startsWith("storage:products/")) return;
+  const { count, error } = await db
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("image_url", imageUrl);
+  if (error || count !== 0) return;
+  await db.storage.from("product-images").remove([imageUrl.slice("storage:".length)]);
+}
+
 import {
   ORDER_STATUSES,
   PAYMENT_STATUSES,
@@ -305,6 +318,16 @@ export const adminSaveProduct = createServerFn({ method: "POST" })
       throw new Error("Only the custom celebration cake can live in the Custom cakes collection.");
     }
     const db = await admin();
+    let previousImageUrl: string | null = null;
+    if (data.id) {
+      const { data: current, error } = await db
+        .from("products")
+        .select("image_url")
+        .eq("id", data.id)
+        .single();
+      if (error) throw new Error(error.message);
+      previousImageUrl = current.image_url;
+    }
 
     const row = {
       slug: data.slug,
@@ -332,6 +355,9 @@ export const adminSaveProduct = createServerFn({ method: "POST" })
     if (data.id) {
       const { error } = await db.from("products").update(row).eq("id", data.id);
       if (error) throw new Error(error.message);
+      if (previousImageUrl !== data.image_url) {
+        await deleteUnreferencedProductImage(db, previousImageUrl);
+      }
       return { ok: true, id: data.id };
     }
     const { data: created, error } = await db.from("products").insert(row).select("id").single();
@@ -353,6 +379,13 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
     }
     const db = await admin();
 
+    const { data: current, error: currentError } = await db
+      .from("products")
+      .select("image_url")
+      .eq("id", data.id)
+      .single();
+    if (currentError) throw new Error(currentError.message);
+
     const { count } = await db
       .from("order_items")
       .select("id", { count: "exact", head: true })
@@ -365,6 +398,118 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
 
     const { error } = await db.from("products").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    await deleteUnreferencedProductImage(db, current.image_url);
+    return { ok: true };
+  });
+
+const PRODUCT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+type ProductImageType = (typeof PRODUCT_IMAGE_TYPES)[number];
+
+const IMAGE_EXTENSIONS: Record<ProductImageType, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function hasImageSignature(bytes: Uint8Array, type: ProductImageType): boolean {
+  if (type === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (type === "image/png") {
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return bytes.length >= signature.length && signature.every((byte, i) => bytes[i] === byte);
+  }
+  if (type === "image/webp") {
+    return (
+      bytes.length >= 12 &&
+      String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+      String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+    );
+  }
+  return false;
+}
+
+/**
+ * Issues a short-lived upload token so image bytes travel directly from the
+ * browser to Storage instead of crossing the server-function payload limit.
+ */
+export const adminCreateProductImageUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        slug: z
+          .string()
+          .trim()
+          .min(2)
+          .max(120)
+          .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers and hyphens"),
+        content_type: z.enum(PRODUCT_IMAGE_TYPES),
+        size_bytes: z.number().int().min(1).max(MAX_IMAGE_BYTES),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const ext = IMAGE_EXTENSIONS[data.content_type];
+    const path = `products/${data.slug}-${crypto.randomUUID()}.${ext}`;
+    const { data: upload, error } = await db.storage
+      .from("product-images")
+      .createSignedUploadUrl(path, { upsert: false });
+    if (error || !upload) throw new Error("Could not prepare that image upload. Please try again.");
+    return { path, token: upload.token };
+  });
+
+const PRODUCT_IMAGE_PATH = /^products\/[a-z0-9-]+-[0-9a-f-]{36}\.(?:jpg|png|webp)$/;
+
+/** Validates the uploaded bytes before the product may reference the object. */
+export const adminFinalizeProductImageUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        path: z.string().regex(PRODUCT_IMAGE_PATH),
+        content_type: z.enum(PRODUCT_IMAGE_TYPES),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    const { data: image, error } = await db.storage.from("product-images").download(data.path);
+    if (error || !image) {
+      await db.storage.from("product-images").remove([data.path]);
+      throw new Error("Could not verify that image. Please try again.");
+    }
+
+    const bytes = new Uint8Array(await image.arrayBuffer());
+    if (
+      bytes.byteLength === 0 ||
+      bytes.byteLength > MAX_IMAGE_BYTES ||
+      image.type !== data.content_type ||
+      !data.path.endsWith(`.${IMAGE_EXTENSIONS[data.content_type]}`) ||
+      !hasImageSignature(bytes, data.content_type)
+    ) {
+      await db.storage.from("product-images").remove([data.path]);
+      throw new Error("The uploaded file is not a valid supported image.");
+    }
+
+    return { image_url: `storage:${data.path}` };
+  });
+
+/** Removes an abandoned generated upload, but never an image referenced by a product. */
+export const adminDiscardProductImageUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ path: z.string().regex(PRODUCT_IMAGE_PATH) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context);
+    const db = await admin();
+    await deleteUnreferencedProductImage(db, `storage:${data.path}`);
     return { ok: true };
   });
 

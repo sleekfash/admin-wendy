@@ -1,11 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
-import { adminDeleteProduct, adminListProducts, adminSaveProduct } from "@/lib/admin.functions";
+import { ImageUp, Plus, Search, Trash2 } from "lucide-react";
+import {
+  adminCreateProductImageUpload,
+  adminDeleteProduct,
+  adminDiscardProductImageUpload,
+  adminFinalizeProductImageUpload,
+  adminListProducts,
+  adminSaveProduct,
+} from "@/lib/admin.functions";
 import { isCustomCakeProduct } from "@/lib/custom-cake-contract";
 import { formatMoney, imageSrc } from "@/lib/shop";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminProductOptions } from "@/components/admin/AdminProductOptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +51,7 @@ type Draft = {
   lead_time: string;
   serves: string;
   includes: string;
+  image_key: string;
   image_url: string;
   status: Status;
   sort_order: number;
@@ -66,6 +75,7 @@ function toDraft(p?: ProductRow): Draft {
     lead_time: p?.lead_time ?? "",
     serves: p?.serves ?? "",
     includes: includes.join("\n"),
+    image_key: p?.image_key ?? "",
     image_url: p?.image_url ?? "",
     status: (p?.status as Status) ?? "available",
     sort_order: p?.sort_order ?? 0,
@@ -85,20 +95,69 @@ const STATUS_TONE: Record<Status, "default" | "secondary" | "outline"> = {
   archived: "outline",
 };
 
+const PRODUCT_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+type ProductImageType = (typeof PRODUCT_IMAGE_TYPES)[number];
+type PendingImage = {
+  file: File;
+  content_type: ProductImageType;
+  preview_url: string;
+};
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function isProductImageType(value: string): value is ProductImageType {
+  return (PRODUCT_IMAGE_TYPES as readonly string[]).includes(value);
+}
+
 export function AdminProducts() {
   const listProducts = useServerFn(adminListProducts);
   const saveProduct = useServerFn(adminSaveProduct);
   const deleteProduct = useServerFn(adminDeleteProduct);
+  const createProductImageUpload = useServerFn(adminCreateProductImageUpload);
+  const finalizeProductImageUpload = useServerFn(adminFinalizeProductImageUpload);
+  const discardProductImageUpload = useServerFn(adminDiscardProductImageUpload);
   const queryClient = useQueryClient();
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError, error } = useQuery({
     queryKey: ["admin", "products"],
     queryFn: () => listProducts(),
   });
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
+  const [unsavedImagePath, setUnsavedImagePath] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const discardUpload = (path: string) => {
+    void discardProductImageUpload({ data: { path } }).catch(() => undefined);
+  };
+
+  const clearPendingImage = () => {
+    setPendingImage((current) => {
+      if (current) URL.revokeObjectURL(current.preview_url);
+      return null;
+    });
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const openEditor = (product?: ProductRow) => {
+    clearPendingImage();
+    if (unsavedImagePath) {
+      discardUpload(unsavedImagePath);
+      setUnsavedImagePath(null);
+    }
+    setDraft(toDraft(product));
+  };
+
+  const closeEditor = (shouldDiscardUpload = true) => {
+    clearPendingImage();
+    if (shouldDiscardUpload && unsavedImagePath) {
+      discardUpload(unsavedImagePath);
+    }
+    setUnsavedImagePath(null);
+    setDraft(null);
+  };
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["admin"] });
@@ -106,8 +165,39 @@ export function AdminProducts() {
   };
 
   const save = useMutation({
-    mutationFn: (d: Draft) =>
-      saveProduct({
+    mutationFn: async (d: Draft) => {
+      let imageUrl = d.image_url.trim() || null;
+      const selectedImage = pendingImage;
+      if (selectedImage) {
+        const prepared = await createProductImageUpload({
+          data: {
+            slug: d.slug.trim(),
+            content_type: selectedImage.content_type,
+            size_bytes: selectedImage.file.size,
+          },
+        });
+        if (unsavedImagePath && unsavedImagePath !== prepared.path) {
+          discardUpload(unsavedImagePath);
+        }
+        setUnsavedImagePath(prepared.path);
+        const { error: uploadError } = await supabase.storage
+          .from("product-images")
+          .uploadToSignedUrl(prepared.path, prepared.token, selectedImage.file, {
+            cacheControl: "31536000",
+            contentType: selectedImage.content_type,
+            upsert: false,
+          });
+        if (uploadError) throw new Error("Could not upload that image. Please try again.");
+
+        const uploaded = await finalizeProductImageUpload({
+          data: { path: prepared.path, content_type: selectedImage.content_type },
+        });
+        imageUrl = uploaded.image_url;
+        setDraft((current) => (current ? { ...current, image_url: uploaded.image_url } : current));
+        clearPendingImage();
+      }
+
+      return saveProduct({
         data: {
           ...(d.id ? { id: d.id } : {}),
           slug: d.slug.trim(),
@@ -131,14 +221,15 @@ export function AdminProducts() {
             .split("\n")
             .map((l) => l.trim())
             .filter(Boolean),
-          image_url: d.image_url.trim() || null,
+          image_url: imageUrl,
           status: d.status,
           sort_order: d.sort_order,
         },
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success("Product saved.");
-      setDraft(null);
+      closeEditor(false);
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -164,6 +255,13 @@ export function AdminProducts() {
     });
   }, [data?.products, search, statusFilter]);
 
+  const imagePreview = draft
+    ? (pendingImage?.preview_url ??
+      (draft.image_url || draft.image_key
+        ? imageSrc({ image_url: draft.image_url || null, image_key: draft.image_key || null })
+        : null))
+    : null;
+
   if (isPending) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -171,6 +269,14 @@ export function AdminProducts() {
           <Skeleton key={i} className="h-64 w-full rounded-[1rem]" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="rounded-[1rem] border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        {error instanceof Error ? error.message : "Could not load products."}
+      </p>
     );
   }
 
@@ -200,7 +306,7 @@ export function AdminProducts() {
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => setDraft(toDraft())}>
+        <Button onClick={() => openEditor()}>
           <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> New product
         </Button>
       </div>
@@ -231,7 +337,7 @@ export function AdminProducts() {
                 {p.pack_size ? ` · ${p.pack_size} ${p.pack_unit ?? "pieces"} per pack` : ""}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => setDraft(toDraft(p))}>
+                <Button size="sm" variant="outline" onClick={() => openEditor(p)}>
                   Edit
                 </Button>
                 {p.status !== "archived" ? (
@@ -271,7 +377,7 @@ export function AdminProducts() {
         </div>
       )}
 
-      <Dialog open={!!draft} onOpenChange={(open) => !open && setDraft(null)}>
+      <Dialog open={!!draft} onOpenChange={(open) => !open && !save.isPending && closeEditor(true)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
           {draft && (
             <>
@@ -421,11 +527,80 @@ export function AdminProducts() {
                     onChange={(e) => setDraft({ ...draft, includes: e.target.value })}
                   />
                 </Field>
-                <Field label="Image URL">
-                  <Input
-                    value={draft.image_url}
-                    onChange={(e) => setDraft({ ...draft, image_url: e.target.value })}
-                  />
+                <Field label="Product image">
+                  <div className="space-y-3 rounded-[0.9rem] border border-border p-3">
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt={draft.name ? `${draft.name} preview` : "Product preview"}
+                        className="aspect-[4/3] w-full rounded-[0.7rem] bg-secondary object-contain"
+                      />
+                    ) : (
+                      <div className="flex aspect-[4/3] items-center justify-center rounded-[0.7rem] bg-secondary text-sm text-muted-foreground">
+                        No product image
+                      </div>
+                    )}
+                    <Input
+                      ref={imageInputRef}
+                      id="product-image-upload"
+                      aria-label="Product image"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                      disabled={save.isPending}
+                      onChange={(event) => {
+                        const input = event.currentTarget;
+                        const file = input.files?.[0];
+                        if (!file) return;
+                        if (!isProductImageType(file.type)) {
+                          toast.error("Choose a JPG, PNG or WebP image.");
+                          input.value = "";
+                          return;
+                        }
+                        if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
+                          toast.error("Choose an image up to 5MB.");
+                          input.value = "";
+                          return;
+                        }
+                        const contentType: ProductImageType = file.type;
+                        setPendingImage((current) => {
+                          if (current) URL.revokeObjectURL(current.preview_url);
+                          return {
+                            file,
+                            content_type: contentType,
+                            preview_url: URL.createObjectURL(file),
+                          };
+                        });
+                      }}
+                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <ImageUp className="h-3.5 w-3.5" aria-hidden="true" />
+                        {pendingImage
+                          ? `${pendingImage.file.name} will upload when you save.`
+                          : "JPG, PNG or WebP, up to 5MB."}
+                      </span>
+                      {(pendingImage || draft.image_url) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-destructive"
+                          disabled={save.isPending}
+                          onClick={() => {
+                            clearPendingImage();
+                            if (unsavedImagePath) {
+                              discardUpload(unsavedImagePath);
+                              setUnsavedImagePath(null);
+                            }
+                            setDraft({ ...draft, image_url: "" });
+                          }}
+                        >
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Sort order">
