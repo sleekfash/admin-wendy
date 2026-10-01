@@ -17,12 +17,36 @@ type DepositPercentWrite = { deposit_percent?: number | null };
 type MultipleRow = { allow_multiple: boolean };
 type MultipleWrite = { allow_multiple?: boolean };
 
+type TestimonialRow = {
+  id: string;
+  image_path: string;
+  alt_text: string;
+  customer_label: string;
+  visible: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type TestimonialTable = {
+  Row: TestimonialRow;
+  Insert: Omit<TestimonialRow, "id" | "created_at" | "updated_at"> & {
+    id?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Update: Partial<Omit<TestimonialRow, "id" | "created_at" | "updated_at">> & {
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
 /** App-owned overlay for additive columns not yet present in Lovable's generated file. */
 export type AppDatabase = Omit<Database, "public"> & {
   public: Omit<Database["public"], "Tables"> & {
     Tables: Omit<
       GeneratedTables,
-      "products" | "product_option_groups" | "orders" | "order_items"
+      "products" | "product_option_groups" | "orders" | "order_items" | "testimonials"
     > & {
       products: AddFields<GeneratedTables["products"], DepositPercentRow, DepositPercentWrite>;
       product_option_groups: AddFields<
@@ -36,6 +60,7 @@ export type AppDatabase = Omit<Database, "public"> & {
         DepositPercentRow,
         DepositPercentWrite
       >;
+      testimonials: TestimonialTable;
     };
   };
 };

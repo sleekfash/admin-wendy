@@ -386,6 +386,21 @@ CREATE TABLE public.settings (
     delivery_distance_config jsonb DEFAULT '{"bands": []}'::jsonb NOT NULL
 );
 
+-- Published customer-review artwork. The original phone screenshot is never
+-- stored: the admin browser uploads only the approved branded transformation.
+CREATE TABLE public.testimonials (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    image_path text NOT NULL,
+    alt_text text DEFAULT 'Customer review for Wendy''s Bakehouse'::text NOT NULL,
+    customer_label text DEFAULT 'Wendy''s Bakehouse customer'::text NOT NULL,
+    visible boolean DEFAULT true NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT testimonials_image_path_check CHECK ((image_path ~ '^testimonials/[0-9a-f-]{36}\.(jpg|png|webp)$'::text)),
+    CONSTRAINT testimonials_sort_order_check CHECK (((sort_order >= 0) AND (sort_order <= 9999)))
+);
+
 --
 -- Name: user_roles; Type: TABLE; Schema: public; Owner: -
 --
@@ -410,6 +425,9 @@ ALTER TABLE ONLY public.categories
 
 ALTER TABLE ONLY public.categories
     ADD CONSTRAINT categories_slug_key UNIQUE (slug);
+
+ALTER TABLE ONLY public.testimonials
+    ADD CONSTRAINT testimonials_pkey PRIMARY KEY (id);
 
 --
 -- Name: delivery_zones delivery_zones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -578,6 +596,8 @@ CREATE TRIGGER products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW
 
 CREATE TRIGGER settings_updated_at BEFORE UPDATE ON public.settings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+CREATE TRIGGER testimonials_updated_at BEFORE UPDATE ON public.testimonials FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 --
 -- Name: order_items order_items_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
@@ -668,6 +688,8 @@ CREATE POLICY "admins manage products" ON public.products TO authenticated USING
 
 CREATE POLICY "admins manage settings" ON public.settings TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
+CREATE POLICY "staff manage testimonials" ON public.testimonials TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+
 --
 -- Name: categories; Type: ROW SECURITY; Schema: public; Owner: -
 --
@@ -745,6 +767,8 @@ CREATE POLICY "public can read visible categories" ON public.categories FOR SELE
 --
 
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: categories staff read categories; Type: POLICY; Schema: public; Owner: -
@@ -836,7 +860,8 @@ REVOKE ALL ON TABLE
     public.order_items,
     public.products,
     public.product_option_groups,
-    public.product_option_choices
+    public.product_option_choices,
+    public.testimonials
 FROM anon, authenticated;
 
 GRANT ALL ON TABLE public.categories TO anon;
@@ -896,6 +921,10 @@ GRANT ALL ON TABLE public.products TO service_role;
 GRANT ALL ON TABLE public.settings TO anon;
 GRANT ALL ON TABLE public.settings TO authenticated;
 GRANT ALL ON TABLE public.settings TO service_role;
+
+-- Testimonial rows and private image paths are exposed only through trusted
+-- server functions and the signed-image route.
+GRANT ALL ON TABLE public.testimonials TO service_role;
 
 --
 -- Name: TABLE user_roles; Type: ACL; Schema: public; Owner: -

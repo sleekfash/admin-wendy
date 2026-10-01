@@ -49,8 +49,9 @@ contents, paste it into a new query, and press **Run**.
 If you are upgrading an existing Wendy's Bakehouse database instead of creating
 a fresh project, run `05-cake-pricing.sql` and then rerun the idempotent
 `02-data.sql` seed. Run `06-product-image-storage.sql` once to apply the private
-product-image bucket limits. Do not rerun `01-schema.sql` over an existing
-database.
+product-image bucket limits, then run `07-testimonials.sql` to add the private
+testimonial-image workflow and slider records. Do not rerun `01-schema.sql`
+over an existing database.
 
 > **Heads-up before rerunning `02-data.sql` on a live shop:** the seed restores
 > the canonical catalogue prices, payment rules and deposit percentages, and it

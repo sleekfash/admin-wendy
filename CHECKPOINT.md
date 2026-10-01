@@ -1,5 +1,23 @@
 # Work checkpoint - 2026-09-20
 
+## Testimonial workflow update - 2026-10-01
+
+- Replaced the incorrect homepage cupcake artwork with a slider containing the
+  three approved branded customer-review designs.
+- Added `/admin/testimonials`: staff can choose a raw phone-chat screenshot,
+  recolour neutral black chat backgrounds into the Wendy's cocoa/rose palette,
+  preview the square branded card, and publish only the approved transformed
+  image. Raw screenshots are never uploaded.
+- Added private `testimonial-images` storage, signed storefront delivery,
+  testimonial metadata, visibility controls, deletion, ordering, file-signature
+  validation, and an 8 MB stored-image limit.
+- Existing deployments must run `deploy/supabase/07-testimonials.sql`. Until it
+  is applied, the storefront safely continues with the three bundled reviews.
+- Audited the migration unique to `sleekfash/wendys-admin`: its `create_order`
+  execute revocation is already present in this repository's fresh schema,
+  cake-pricing upgrade, and hardening migrations, so no duplicate migration was
+  imported. OpenAI Sites hosting remains excluded by owner decision.
+
 ## Goal
 
 Finish the cake-pricing rollout, close production review findings, verify the
@@ -77,10 +95,12 @@ Supabase project after human-assisted authentication.
   untouched/generated files; targeted changed-file lint is clean.
 
 ## Supabase deployment - DONE (fresh install)- **Project**: `wendys-admin` (ref `rrgusprzsfdmlzsnjixz`, org `sleekfash`,
-  region `ca-central-1`, ACTIVE_HEALTHY). It was empty, so the **fresh-install
-  path** was used: `01-schema.sql` → `02-data.sql` → `03-storage.sql` →
-  `04-admin-user.sql`, all applied via the session pooler (postgres.js) with the
-  user-supplied database password (local file only, never in chat).
+
+region `ca-central-1`, ACTIVE_HEALTHY). It was empty, so the **fresh-install
+path** was used: `01-schema.sql` → `02-data.sql` → `03-storage.sql` →
+`04-admin-user.sql`, all applied via the session pooler (postgres.js) with the
+user-supplied database password (local file only, never in chat).
+
 - **Admin login**: `admin@wendysbakehouse.ca` created via the GoTrue admin API,
   granted the `admin` role by `04-admin-user.sql`. Password generated locally
   and stored in `.env` (`ADMIN_PASSWORD`) — save it to a password manager.

@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, CupSoda, MapPin, ShieldCheck, Sparkles } from "lucide-react";
 import heroArtwork from "@/assets/hero.jpg";
-import reviewArtwork from "@/assets/cupcakes.jpg";
 import { BUSINESS } from "@/data/catalog";
 import { CustomCakeMontage, CustomCakeTile } from "@/components/site/CakeArtwork";
+import { TestimonialSlider } from "@/components/site/TestimonialSlider";
 import {
   CtaBand,
   Eyebrow,
@@ -213,32 +213,12 @@ function Index() {
       <Section>
         <div className="grid items-center gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
-            <SmartImage
-              src={reviewArtwork}
-              alt="A box of Wendy's Bakehouse cupcakes"
-              ratio="aspect-square"
-            />
-          </div>
-          <div className="md:col-span-7">
             <Eyebrow>Real feedback, real love</Eyebrow>
             <h2 className="mt-4 text-3xl md:text-4xl">What customers say.</h2>
-            <figure className="mt-8 border-l-2 border-gold pl-5">
-              <blockquote className="text-lg">
-                &ldquo;I just tasted the cake and it tastes so rich. Both vanilla and red velvet.
-                Just the right amount of sugar. Not sugary!! Thank you so much.&rdquo;
-              </blockquote>
-              <figcaption className="mt-3 text-sm text-muted-foreground">
-                Birthday cake customer, Etobicoke
-              </figcaption>
-            </figure>
-            <figure className="mt-6 border-l-2 border-gold/50 pl-5">
-              <blockquote className="text-lg">
-                &ldquo;Thank you, I just got the cake — absolutely loved it!&rdquo;
-              </blockquote>
-              <figcaption className="mt-3 text-sm text-muted-foreground">
-                Celebration cake customer, Toronto
-              </figcaption>
-            </figure>
+            <p className="mt-5 text-muted-foreground">
+              Real messages from customers after their cakes arrived. Use the arrows to read through
+              the latest feedback.
+            </p>
             <ul className="mt-8 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" /> Rich flavour
@@ -251,6 +231,9 @@ function Index() {
                 <Clock className="h-4 w-4 text-gold" aria-hidden="true" /> Ready on your date
               </li>
             </ul>
+          </div>
+          <div className="md:col-span-7">
+            <TestimonialSlider />
           </div>
         </div>
       </Section>
