@@ -6,7 +6,7 @@ Your first responsibility is to fully understand this business before making any
 
 Research the business represented by the following Instagram profile:
 
-**https://www.instagram.com/3kbelowankara**
+**https://www.instagram.com/wendy.bakehouse**
 
 Begin with the Instagram profile, then expand your research by discovering any credible publicly available information that helps you understand the business, its products, services, customers, market positioning, competitors, and digital presence.
 
