@@ -73,17 +73,10 @@ function Index() {
   return (
     <>
       <section className="relative bg-background text-foreground">
-        <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-14 md:min-h-[640px] md:grid-cols-12 md:items-center md:py-20">
-          <div className="relative -mx-5 -mt-14 md:absolute md:inset-y-0 md:right-0 md:mt-0 md:mx-0 md:w-[52%]">
-            <CustomCakeMontage
-              priority
-              ratio="aspect-[4/3] md:aspect-auto md:h-full"
-              className="hero-cake-montage"
-            />
-          </div>
-          <div className="relative z-10 md:order-1 md:col-span-6 md:pr-10">
+        <div className="mx-auto grid max-w-[1200px] gap-8 px-5 py-10 md:grid-cols-[0.95fr_1.05fr] md:items-stretch md:gap-10 md:py-14">
+          <div className="flex flex-col justify-center rounded-[1.5rem] border border-border/80 bg-[#f8f1ee] p-6 shadow-[0_18px_48px_rgba(81,53,48,0.08)] md:p-10 lg:p-12">
             <p className="eyebrow text-primary">Now booking {BUSINESS.bookingMonth}</p>
-            <h1 className="mt-5 text-[2.5rem] leading-[1.03] md:text-6xl">
+            <h1 className="mt-5 max-w-[12ch] text-[2.5rem] leading-[1.03] md:text-5xl lg:text-6xl">
               Made-to-order <span className="text-primary">celebration cakes</span> in Toronto.
             </h1>
             <p className="mt-6 max-w-[56ch] text-lg text-muted-foreground">
@@ -101,23 +94,37 @@ function Index() {
               <Link
                 to="/menu/$slug"
                 params={{ slug: CUSTOM_CAKE_PRODUCT_SLUG }}
-                className="rounded-sm border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary"
+                className="rounded-sm border border-border bg-white px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary"
               >
                 Customize your cake
               </Link>
             </div>
             <ul className="mt-10 grid gap-4 border-t border-border pt-6 text-sm text-muted-foreground sm:grid-cols-3">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-bronze" aria-hidden="true" /> Certified Food
-                Handler
+                <ShieldCheck className="h-4 w-4 shrink-0 text-bronze" aria-hidden="true" />
+                Certified Food Handler
               </li>
               <li className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-bronze" aria-hidden="true" /> Pickup in Etobicoke
+                <MapPin className="h-4 w-4 shrink-0 text-bronze" aria-hidden="true" />
+                Pickup in Etobicoke
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-bronze" aria-hidden="true" /> Baked to order
+                <Sparkles className="h-4 w-4 shrink-0 text-bronze" aria-hidden="true" />
+                Baked to order
               </li>
             </ul>
+          </div>
+          <div className="overflow-hidden rounded-[1.5rem] border border-border/80 bg-[#f4e7e1] shadow-[0_18px_48px_rgba(81,53,48,0.08)]">
+            <SmartImage
+              src={CUSTOM_CAKE_COVER_IMAGE}
+              alt="Elegant three-tier white celebration cake decorated with blush flowers and greenery"
+              ratio="aspect-[4/5] md:aspect-auto md:h-full md:min-h-[620px]"
+              rounded="rounded-none"
+              fit="contain"
+              background="white"
+              priority
+              className="min-h-[360px] md:min-h-[620px]"
+            />
           </div>
         </div>
       </section>
