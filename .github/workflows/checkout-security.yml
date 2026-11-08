@@ -36,9 +36,9 @@ jobs:
           ! grep -R "getBankDetails" src
           ! grep -R "FALLBACK_BANK_DETAILS" src
           ! grep -R "bankDetailsQueryOptions" src
+      - name: Production build (regenerates TanStack route tree)
+        run: bun run build
       - name: Type check
         run: bunx tsc --noEmit
       - name: Lint
         run: bun run lint
-      - name: Production build
-        run: bun run build
