@@ -149,6 +149,10 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       if (product.payment_rule !== "deposit") {
         throw new PricingError(`${product.name} has an incomplete payment setup.`);
       }
+      // Fail closed if application code is deployed before the matching pricing migration.
+      if (product.price_cents !== 0 || product.deposit_percent !== 70) {
+        throw new PricingError("Custom cake pricing is being updated. Please try again shortly.");
+      }
       if (product.category_id !== CUSTOM_CAKE_CATEGORY_ID) {
         throw new PricingError(
           `${product.name} is temporarily unavailable because its setup needs attention.`,
