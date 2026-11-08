@@ -2,7 +2,7 @@ import { useShopContact } from "@/lib/use-shop-contact";
 import { CatalogRouteError } from "@/components/site/CatalogNotice";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Check, MessageCircle } from "lucide-react";
-import { CtaBand, ProductCard, Section } from "@/components/site/Bits";
+import { CtaBand, ProductCard, publicProductLeadTime, Section } from "@/components/site/Bits";
 import { AddToBasket } from "@/components/site/AddToBasket";
 import { SmartImage } from "@/components/site/SmartImage";
 import { CakeGallery } from "@/components/site/CakeArtwork";
@@ -44,7 +44,8 @@ export const Route = createFileRoute("/menu/$slug")({
     }
     const { product } = loaderData;
     const title = `${product.name} — Wendy's Bakehouse, Toronto`;
-    const desc = `${product.short} ${priceLabel(product)}. ${product.lead_time}. Pickup in Etobicoke, Toronto.`;
+    const leadTime = publicProductLeadTime(product.lead_time);
+    const desc = `${product.short} ${priceLabel(product)}. ${leadTime ? `${leadTime}. ` : ""}Pickup in Etobicoke, Toronto.`;
     return {
       meta: [
         { title },
@@ -146,7 +147,9 @@ function ProductPage() {
               <p className="mt-2 text-sm text-muted-foreground">{product.price_note}</p>
             )}
             <p className="eyebrow mt-4 text-[11px] text-muted-foreground">
-              {product.lead_time} · {product.serves ?? "Pickup in Etobicoke"}
+              {[publicProductLeadTime(product.lead_time), product.serves ?? "Pickup in Etobicoke"]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
 
             <p className="mt-6 max-w-[64ch] text-base leading-relaxed">{product.description}</p>

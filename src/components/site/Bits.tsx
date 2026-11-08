@@ -51,7 +51,13 @@ export function PageHeader({
   );
 }
 
+export function publicProductLeadTime(leadTime: string): string {
+  const label = leadTime.trim();
+  return label.toLowerCase() === "2 weeks" ? "" : label;
+}
+
 export function ProductCard({ product }: { product: ShopProduct }) {
+  const leadTime = publicProductLeadTime(product.lead_time);
   return (
     <article className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-[0_10px_30px_-18px_color-mix(in_oklab,var(--primary)_45%,transparent)]">
       <Link
@@ -85,7 +91,7 @@ export function ProductCard({ product }: { product: ShopProduct }) {
           </Link>
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">{product.short}</p>
-        <p className="eyebrow mt-4 text-[11px] text-muted-foreground">{product.lead_time}</p>
+        {leadTime && <p className="eyebrow mt-4 text-[11px] text-muted-foreground">{leadTime}</p>}
       </div>
     </article>
   );
