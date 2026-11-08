@@ -5,6 +5,7 @@ import {
   orderSchema,
   MAX_SLIP_BYTES,
   SLIP_EXTENSIONS,
+  slipSchema,
   type PlaceOrderInput,
 } from "@/lib/order-schemas";
 
@@ -41,7 +42,7 @@ export const placeOrder = createServerFn({ method: "POST" })
     const { id, reference, cart, lines } = await createPricedOrder(data, {
       checkout_method: data.checkout_method,
       payment_provider: isTransfer ? "bank_transfer" : "whatsapp",
-      payment_status: isTransfer ? "pending_verification" : "not_paid",
+      payment_status: "not_paid",
       payer_name: data.payer_name ?? null,
       transfer_reference: data.transfer_reference ?? null,
       transfer_date: data.transfer_date || null,
@@ -80,6 +81,14 @@ export const placeOrder = createServerFn({ method: "POST" })
       balanceCents: cart.balance_cents,
       hasQuoteItems: false,
       slipUploaded,
+      ...(isTransfer
+        ? {
+            paymentAccess: (await import("@/lib/order-access.server")).issueOrderPaymentAccess(
+              id,
+              reference,
+            ),
+          }
+        : {}),
       lines: lines.map((l) => ({
         name: l.name,
         quantity: l.quantity,
@@ -155,4 +164,123 @@ export const getOrderPaymentState = createServerFn({ method: "POST" })
       balance_cents: order.balance_cents,
       total_cents: order.total_cents,
     };
+  });
+
+/** Read bank details only for a committed transfer order with its bearer access key. */
+export const getTransferPayment = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({
+      reference: z.string().trim().min(4).max(40),
+      access: z.string().regex(/^[a-f0-9]{64}$/),
+    }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyOrderPaymentAccess } = await import("@/lib/order-access.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, reference, checkout_method, payment_status, status, total_cents, due_now_cents, balance_cents, slip_path")
+      .eq("reference", data.reference)
+      .maybeSingle();
+    if (!order || order.checkout_method !== "bank_transfer" ||
+        !verifyOrderPaymentAccess(order.id, order.reference, data.access)) {
+      throw new Error("This payment link is invalid. Please use the link from your order confirmation.");
+    }
+    const { data: settings, error } = await supabaseAdmin
+      .from("settings")
+      .select("bank_account_name, bank_account_number, bank_name, bank_note")
+      .limit(1)
+      .maybeSingle();
+    if (error || !settings?.bank_account_number) {
+      throw new Error("Bank transfer details are currently unavailable. Please contact the bakery.");
+    }
+    return {
+      reference: order.reference,
+      paymentStatus: order.payment_status,
+      cancelled: order.status === "cancelled",
+      totalCents: order.total_cents,
+      dueNowCents: order.due_now_cents,
+      balanceCents: order.balance_cents,
+      slipUploaded: Boolean(order.slip_path),
+      bank: settings,
+    };
+  });
+
+/** Upload evidence against the same existing order; never create a second order. */
+export const submitTransferReceipt = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({
+      reference: z.string().trim().min(4).max(40),
+      access: z.string().regex(/^[a-f0-9]{64}$/),
+      payer_name: z.string().trim().min(1).max(100),
+      transfer_reference: z.string().trim().max(80).optional(),
+      transfer_date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+      slip: slipSchema,
+    }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { verifyOrderPaymentAccess } = await import("@/lib/order-access.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, reference, checkout_method, payment_status, status, slip_path")
+      .eq("reference", data.reference)
+      .maybeSingle();
+    if (!order || order.checkout_method !== "bank_transfer" ||
+        !verifyOrderPaymentAccess(order.id, order.reference, data.access)) {
+      throw new Error("Invalid payment link.");
+    }
+    if (order.status === "cancelled" || order.payment_status !== "not_paid") {
+      throw new Error("This order cannot accept a new receipt. Please contact the bakery.");
+    }
+    if (order.slip_path) {
+      throw new Error("A receipt has already been submitted for this order.");
+    }
+    const bytes = decodeBase64(data.slip.data_base64);
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_SLIP_BYTES) {
+      throw new Error("Upload a payment receipt smaller than 5MB.");
+    }
+    // Validate the actual file signature, not only its declared MIME type.
+    const mime = data.slip.content_type;
+    const head = bytes.slice(0, 12);
+    const ascii = (start: number, end: number) => String.fromCharCode(...head.slice(start, end));
+    const valid = mime === "application/pdf"
+      ? ascii(0, 5) === "%PDF-"
+      : mime === "image/png"
+        ? head[0] === 137 && ascii(1, 4) === "PNG"
+        : mime === "image/jpeg"
+          ? head[0] === 255 && head[1] === 216 && head[2] === 255
+          : mime === "image/webp"
+            ? ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP"
+            : mime === "image/heic"
+              ? ascii(4, 8) === "ftyp"
+              : false;
+    if (!valid) throw new Error("The receipt file does not match its declared format.");
+
+    const path = `${order.id}/slip.${SLIP_EXTENSIONS[mime]}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("payment-slips")
+      .upload(path, bytes, { contentType: mime, upsert: false });
+    if (uploadError) throw new Error("Could not upload the receipt. Please try again.");
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("orders")
+      .update({
+        slip_path: path,
+        payer_name: data.payer_name,
+        transfer_reference: data.transfer_reference || null,
+        transfer_date: data.transfer_date || null,
+        payment_status: "pending_verification",
+      })
+      .eq("id", order.id)
+      .eq("payment_status", "not_paid")
+      .is("slip_path", null)
+      .select("id")
+      .maybeSingle();
+    if (updateError || !updated) {
+      // The storage object may remain orphaned after a racing admin update.
+      await supabaseAdmin.storage.from("payment-slips").remove([path]);
+      throw new Error("Payment status changed. Please refresh your order before retrying.");
+    }
+    return { ok: true as const, reference: order.reference };
   });
