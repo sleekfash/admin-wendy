@@ -156,8 +156,8 @@ function ProductPage() {
                 <div className="space-y-4 rounded-lg border border-border p-5">
                   <p className="text-sm text-muted-foreground">
                     This photograph is a design reference. The starting price covers the simplest
-                    qualifying custom cake; recreating this example may require paid extras. Choose
-                    your size, layers and decorations to see your total.
+                    qualifying custom cake. Pick your size, then add the extras you want. Recreating
+                    this design may require paid decorations.
                   </p>
                   <Link
                     to="/menu/$slug"
@@ -175,7 +175,7 @@ function ProductPage() {
                   )}
                   <AddToBasket
                     key={selectedDesign?.id ?? product.id}
-                    slug={product.slug}
+                    product={product}
                     design={selectedDesign}
                   />
                 </>

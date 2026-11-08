@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { startingPrice } from "./public-pricing";
+import { directCakeSizes, startingPrice } from "./public-pricing";
 import { isCakeCollection } from "./cake-only-catalog";
 import { isCakeDesignProduct } from "./cake-designs";
 import { CUSTOM_CAKE_PRODUCT_ID } from "./custom-cake-contract";
@@ -114,6 +114,8 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
       groupsByProduct.set(group.product_id, bucket);
     }
 
+    const canonicalGroups = canonical ? (groupsByProduct.get(canonical.id) ?? []) : [];
+    const cakeSizes = canonical ? directCakeSizes(canonical, canonicalGroups) : [];
     const shapedProducts = products.map((p) => {
       const source = isCakeDesignProduct(p.id, p.category_id) ? canonical! : p;
       return {
@@ -133,6 +135,7 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
       categories,
       products: shapedProducts,
       settings: settings.data ?? null,
+      cake_sizes: cakeSizes,
       option_groups: optionGroups,
       option_choices: (choices.data ?? []).filter((c) => groupIds.has(c.group_id)),
     };

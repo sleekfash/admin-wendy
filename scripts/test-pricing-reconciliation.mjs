@@ -57,7 +57,9 @@ try {
       return q;
     },
   };
-  const { startingPrice } = await import(pathToFileURL(join(temp, "public.mjs")).href);
+  const { directCakeSizes, startingPrice } = await import(
+    pathToFileURL(join(temp, "public.mjs")).href
+  );
   const { priceLines } = await import(pathToFileURL(join(temp, "server.mjs")).href);
   const cake = data.products.find((p) => p.slug === "tiered-celebration-cake");
   assert.ok(cake, "Cake must be present in the verified catalogue fixture");
@@ -166,6 +168,69 @@ try {
   );
   passed++;
   console.log("PASS duplicate tier sizes are rejected");
+  check("direct-order size skips the below-minimum size", () =>
+    assert.deepEqual(directCakeSizes(cake, groups)[0], {
+      key: "6-inch-2-layers",
+      price_cents: line.unit_total_cents,
+    }),
+  );
+  const topper = { group_key: "cake-add-ons", choice_key: "simple-edible-topper" };
+  const [topperLine] = await priceLines([{ ...req, choices: [...req.choices, topper] }]);
+  check("topper-only customization quotes without a stacking fee", () => {
+    assert.equal(topperLine.unit_total_cents, line.unit_total_cents + 2500);
+    assert.equal(
+      topperLine.options_snapshot.some((o) => o.group_key === "tiering-fee"),
+      false,
+    );
+  });
+  const tierChoices = [
+    { group_key: "size-layers", choice_key: "6-inch-3-layers" },
+    { group_key: "extra-tiers", choice_key: "second-tier-8-inch" },
+  ];
+  for (const tierCount of [2, 3]) {
+    const choices = [
+      ...tierChoices,
+      ...(tierCount === 3 ? [{ group_key: "extra-tiers", choice_key: "third-tier-10-inch" }] : []),
+      { group_key: "fondant-covering", choice_key: `fondant-${tierCount}-tiers` },
+    ];
+    const fee = { group_key: "tiering-fee", choice_key: `tiering-${tierCount}-tiers` };
+    const [automatic, legacy] = await priceLines([
+      { ...req, choices, notes: "Design reference: fixture" },
+      { ...req, choices: [...choices, fee] },
+    ]);
+    check(`automatic ${tierCount}-tier fee matches legacy checkout and is charged once`, () => {
+      assert.equal(automatic.unit_total_cents, legacy.unit_total_cents);
+      assert.equal(automatic.line_due_now_cents, legacy.line_due_now_cents);
+      assert.deepEqual(
+        automatic.options_snapshot.filter((option) => option.group_key === fee.group_key),
+        legacy.options_snapshot.filter((option) => option.group_key === fee.group_key),
+      );
+      assert.equal(
+        automatic.options_snapshot.filter((option) => option.group_key === fee.group_key).length,
+        1,
+      );
+      assert.equal(automatic.notes, "Design reference: fixture");
+    });
+  }
+  const twoTierFee = data.product_option_choices.find((choice) => choice.key === "tiering-2-tiers");
+  await assert.rejects(
+    () =>
+      priceLines([
+        {
+          ...req,
+          choices: [...tierChoices, { group_key: "tiering-fee", choice_key: "tiering-3-tiers" }],
+        },
+      ]),
+    /stacking fee no longer matches/,
+  );
+  twoTierFee.available = false;
+  await assert.rejects(
+    () => priceLines([{ ...req, choices: tierChoices }]),
+    /Stacking is unavailable/,
+  );
+  twoTierFee.available = true;
+  passed += 2;
+  console.log("PASS conflicting and unavailable stacking fees fail closed");
   const oldMinimum = cake.buttercream_minimum_cents;
   cake.buttercream_minimum_cents = 13500;
   await assert.rejects(() => priceLines([req]), /minimum/);
