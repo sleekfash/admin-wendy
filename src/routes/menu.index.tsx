@@ -10,9 +10,9 @@ import {
 import { CatalogNotice } from "@/components/site/CatalogNotice";
 import { catalogQueryOptions } from "@/lib/shop";
 
-const TITLE = "Cakes & treats — Wendy's Bakehouse, Toronto";
+const TITLE = "Cake Designs — Wendy's Bakehouse, Toronto";
 const DESC =
-  "Browse made-to-order celebration cakes and cupcakes. Open a cake to view pricing and customization options. Pickup in Etobicoke, Toronto.";
+  "Explore custom cake designs from past celebrations. Request a recreation or customize a design for your own occasion. Pickup in Etobicoke, Toronto.";
 
 type Search = { category?: string };
 
@@ -46,9 +46,9 @@ function MenuPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cakes & treats"
-        title="Find the cake for your celebration."
-        lead="Browse custom celebration cakes and cupcakes. Open a cake to see its pricing, sizes and design options."
+        eyebrow="Cake Designs"
+        title="Find a design for your celebration."
+        lead="Explore cakes designs for past celebrations. Choose a design you love and let us recreate and modify it to make it uniquely yours."
       />
 
       <Section>
@@ -95,8 +95,9 @@ function MenuPage() {
         )}
 
         <p className="mt-10 max-w-[70ch] text-sm text-muted-foreground">
-          Open a product to see prices in CAD and explore sizes, tiers and design extras.
-          Fondant figures and sculpted models are not offered.
+          These photographs are examples of cakes previously created for customers. Open a design
+          to request a recreation or personalize it. Sizes, decorations and final prices are
+          confirmed for your order; some pictured details may require a separate quote.
         </p>
       </Section>
 

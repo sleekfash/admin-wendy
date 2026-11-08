@@ -98,7 +98,7 @@ function Index() {
                 to="/menu"
                 className="rounded-sm bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                Browse cakes
+                Explore cake designs
               </Link>
               <Link
                 to="/menu/$slug"
@@ -125,7 +125,7 @@ function Index() {
       </section>
 
       <Section>
-        <Eyebrow>Shop by collection</Eyebrow>
+        <Eyebrow>Explore by collection</Eyebrow>
         <h2 className="mt-4 text-3xl md:text-4xl">Celebration cakes and cupcakes.</h2>
         {(isError || (!isPending && categories.length === 0)) && (
           <CatalogNotice
@@ -218,7 +218,7 @@ function Index() {
             <h2 className="mt-4 text-3xl md:text-4xl">Featured cakes</h2>
           </div>
           <Link to="/menu" className="border-b-2 border-gold pb-1 text-sm font-semibold">
-            View the whole menu
+            View all cake designs
           </Link>
         </div>
         {(isError || (!isPending && products.length === 0)) && (
