@@ -173,7 +173,7 @@ export async function fetchCatalog(): Promise<{
       deposit_cents: p.deposit_cents,
       deposit_percent: p.deposit_percent,
       price_note: isCustomCakeProduct(p.id)
-        ? `Buttercream minimum ${formatMoney(p.buttercream_minimum_cents)}; fondant minimum ${formatMoney(p.fondant_minimum_cents)}.`
+        ? "Prices start with your chosen size and layers; finishes and decorations are extra."
         : p.price_note,
       price_band: p.price_band,
       lead_time: p.lead_time,
