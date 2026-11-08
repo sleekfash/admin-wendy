@@ -87,10 +87,10 @@ function Index() {
         <div className="mx-auto flex min-h-[720px] max-w-[1200px] items-end px-5 pb-12 pt-[22rem] md:min-h-[680px] md:items-center md:py-20 xl:min-h-[760px]">
           <div className="w-full md:max-w-[49%] md:pr-8">
             <p className="eyebrow text-[#ffc4d5]">Now booking {BUSINESS.bookingMonth}</p>
-            <h1 className="mt-5 text-[2.5rem] font-bold leading-[1.03] text-white md:text-6xl">
+            <h1 className="mt-4 text-3xl font-bold leading-[1.12] text-white md:text-[2.625rem]">
               <span className="text-[#ffc4d5]">Custom celebration cakes</span> in Toronto
             </h1>
-            <p className="mt-6 max-w-[48ch] text-lg text-white/90">
+            <p className="mt-4 max-w-[48ch] text-sm text-white/90 md:text-base">
               Choose your cake size, flavour and design, and see your price as you build.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
