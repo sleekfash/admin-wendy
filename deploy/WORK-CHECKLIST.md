@@ -73,3 +73,7 @@ Verification used the local catalog fixture. Plain, topper and two-tier cake tot
 On 8 November 2026, the owner asked to fix the upload on the order-first checkout branch (draft PR #5). The browser uploads JPG, PNG, WebP or HEIC images up to 15 MB directly to the private payment-slips bucket using an order-scoped signed URL. The server checks the stored receipt before attaching it to the order and moving payment to pending verification.
 
 Before release, verify the bucket configuration from `deploy/supabase/10-transfer-receipt-storage.sql` in the intended environment. The staging preview needs its branch-scoped Supabase service-role credential and a fresh deployment before the order, upload, retry and admin-verification flow can be tested. Use synthetic receipts in staging, including an image above Vercel's request limit and a rejected non-image. Verify private receipt access and the admin review queue before promoting the change.
+
+## Floral cake homepage hero
+
+On 8 November 2026, the owner requested replacing the live homepage collage with their floral cake photograph and approved a bold full-width treatment and more direct hero copy. Scope is the homepage hero. Verify the preview and the live page at desktop and mobile widths.
