@@ -27,16 +27,6 @@ export const placeOrder = createServerFn({ method: "POST" })
 
     const isTransfer = data.checkout_method === "bank_transfer";
 
-    // The slip is decoded and size-checked before anything is written, so a
-    // rejected file never leaves a half-finished order behind.
-    let slipBytes: Uint8Array | null = null;
-    if (data.slip) {
-      slipBytes = decodeBase64(data.slip.data_base64);
-      if (slipBytes.byteLength > MAX_SLIP_BYTES) {
-        throw new Error("That payment slip is larger than 5MB. Please upload a smaller file.");
-      }
-    }
-
     // Every price, and the delivery fee, is recalculated server-side from
     // current rows; order + items are written in one database transaction.
     const { id, reference, cart, lines } = await createPricedOrder(data, {
@@ -48,30 +38,6 @@ export const placeOrder = createServerFn({ method: "POST" })
       transfer_date: data.transfer_date || null,
     });
 
-    let slipUploaded = false;
-    if (data.slip && slipBytes) {
-      // The file name is never used to build the storage path: the extension is
-      // derived from the validated content type, so nothing can escape the
-      // order's own folder.
-      const ext = SLIP_EXTENSIONS[data.slip.content_type];
-      const path = `${id}/slip.${ext}`;
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from("payment-slips")
-        .upload(path, slipBytes, { contentType: data.slip.content_type, upsert: true });
-      if (uploadError) {
-        // The order stands; it is simply flagged as missing evidence.
-        await supabaseAdmin
-          .from("orders")
-          .update({
-            notes: [data.notes, "[Payment slip upload failed]"].filter(Boolean).join("\n"),
-          })
-          .eq("id", id);
-      } else {
-        slipUploaded = true;
-        await supabaseAdmin.from("orders").update({ slip_path: path }).eq("id", id);
-      }
-    }
-
     return {
       reference,
       dueNowCents: cart.due_now_cents,
@@ -80,7 +46,7 @@ export const placeOrder = createServerFn({ method: "POST" })
       totalCents: cart.total_cents,
       balanceCents: cart.balance_cents,
       hasQuoteItems: false,
-      slipUploaded,
+      slipUploaded: false,
       ...(isTransfer
         ? {
             paymentAccess: (await import("@/lib/order-access.server")).issueOrderPaymentAccess(
