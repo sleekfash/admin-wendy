@@ -176,7 +176,7 @@ export const submitTransferReceipt = createServerFn({ method: "POST" })
       access: z.string().regex(/^[a-f0-9]{64}$/),
       payer_name: z.string().trim().min(1).max(100),
       transfer_reference: z.string().trim().max(80).optional(),
-      transfer_date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+      transfer_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       slip: slipSchema,
     }).parse(input),
   )
