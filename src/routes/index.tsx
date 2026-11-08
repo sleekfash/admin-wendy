@@ -78,7 +78,7 @@ function Index() {
           width={828}
           height={1100}
           fetchPriority="high"
-          className="absolute inset-0 -z-20 h-full w-full object-cover object-[48%_40%] brightness-110 md:left-auto md:w-[68%] md:object-[50%_46%]"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[48%_40%] brightness-125 md:left-auto md:w-[68%] md:object-[50%_46%]"
         />
         <div
           aria-hidden="true"
