@@ -132,6 +132,13 @@ function OrderPaymentPage() {
                 <p>Amount due now: <strong>{formatMoney(payment.dueNowCents)}</strong></p>
                 {payment.balanceCents > 0 && <p>Balance due later: {formatMoney(payment.balanceCents)}</p>}
                 <p className="capitalize">Payment status: {payment.paymentStatus.replaceAll("_", " ")}</p>
+                <p className="text-sm text-muted-foreground">
+                  Save your private payment link to return later without placing another order.
+                  Anyone with this link can view the payment instructions, so keep it private.
+                </p>
+                <button type="button" className="rounded-sm border border-input px-4 py-2 text-sm" onClick={() => {
+                  navigator.clipboard.writeText(window.location.href).then(() => toast.success("Private payment link copied")).catch(() => toast.error("Unable to copy the link"));
+                }}>Copy private payment link</button>
               </div>
               {!payment.cancelled && payment.paymentStatus === "not_paid" && (
                 <>
