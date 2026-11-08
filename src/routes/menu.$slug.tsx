@@ -158,18 +158,31 @@ function ProductPage() {
               {designListing ? (
                 <div className="space-y-4 rounded-lg border border-border p-5">
                   <p className="text-sm text-muted-foreground">
-                    This photograph is a design reference. The starting price covers the simplest
-                    qualifying custom cake. Pick your size, then add the extras you want. Recreating
-                    this design may require paid decorations.
+                    This photograph shows a custom cake made for a past celebration. Ask Wendy to
+                    recreate the pictured design, subject to decoration availability and a confirmed
+                    quote, or use the configurator to personalize it. The displayed starting price
+                    is not a quote for reproducing every pictured detail.
                   </p>
-                  <Link
-                    to="/menu/$slug"
-                    params={{ slug: CUSTOM_CAKE_PRODUCT_SLUG }}
-                    search={{ design: product.slug }}
-                    className="inline-block rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
-                  >
-                    Customise this design
-                  </Link>
+                  <div className="flex flex-wrap gap-3">
+                    <a
+                      href={`${contact.whatsapp}?text=${encodeURIComponent(
+                        `Hi Wendy, I'd like to recreate your "${product.name}" cake design as pictured (design reference: ${product.slug}). Can you confirm the decorations, availability and final price?`,
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-block rounded-sm border border-input px-5 py-3 text-sm font-semibold"
+                    >
+                      Recreate this design
+                    </a>
+                    <Link
+                      to="/menu/$slug"
+                      params={{ slug: CUSTOM_CAKE_PRODUCT_SLUG }}
+                      search={{ design: product.slug }}
+                      className="inline-block rounded-sm bg-primary px-5 py-3 text-sm font-semibold"
+                    >
+                      Customize this design
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <>
