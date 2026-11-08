@@ -22,7 +22,6 @@ function decodeBase64(data: string): Uint8Array {
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderSchema.parse(data))
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { createPricedOrder } = await import("@/lib/order-create.server");
 
     const isTransfer = data.checkout_method === "bank_transfer";
