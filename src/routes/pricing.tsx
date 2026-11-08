@@ -39,7 +39,9 @@ export const Route = createFileRoute("/pricing")({
 /** Upgrades that genuinely change the price, shown so the total is never a surprise. */
 function upgrades(product: ShopProduct) {
   if (isCakeDesignProduct(product.id, product.category_id)) return [];
-  return product.options.flatMap((group) =>
+  return product.options
+    .filter((group) => !(product.slug === "tiered-celebration-cake" && group.key === "size-layers"))
+    .flatMap((group) =>
     group.choices
       .filter((choice) => choice.price_delta_cents !== 0)
       .map((choice) => ({
@@ -134,6 +136,24 @@ function PricingPage() {
                 </dl>
               </section>
             ))}
+
+            {cakeSizes.length > 0 && (
+              <section className="mb-12">
+                <h2 className="text-3xl">Custom cake size and layer prices</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  These are complete starting prices for the selected cake size and layer count,
+                  before optional decorations and finishes. They are not surcharges.
+                </p>
+                <dl className="mt-6 divide-y divide-border border-y border-border">
+                  {cakeSizes.map((size) => (
+                    <div key={size.key} className="flex justify-between gap-6 py-3">
+                      <dt>{size.key.replaceAll("-", " ").replace("inch", "inch ·")}</dt>
+                      <dd className="font-display text-lg text-gold">{formatMoney(size.price_cents)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
 
             {allUpgrades.length > 0 && (
               <>
