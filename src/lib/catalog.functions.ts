@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
-import { z } from "zod";
 import { directCakeSizes, startingPrice } from "./public-pricing";
 import { isCakeCollection } from "./cake-only-catalog";
 import { isCakeDesignProduct } from "./cake-designs";
@@ -149,29 +148,3 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
   return result;
 });
 
-/**
- * Bank transfer details. Kept out of the public Data API and returned only for
- * a real checkout context — the caller must name at least one orderable item.
- */
-export const getBankDetails = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
-    z.object({ slugs: z.array(z.string().min(1).max(120)).min(1).max(30) }).parse(data),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { count } = await supabaseAdmin
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .in("slug", data.slugs)
-      .eq("available", true);
-
-    if (!count) return null;
-
-    const { data: settings } = await supabaseAdmin
-      .from("settings")
-      .select("bank_account_name, bank_account_number, bank_name, bank_note")
-      .limit(1)
-      .maybeSingle();
-    return settings ?? null;
-  });

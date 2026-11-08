@@ -1,0 +1,55 @@
+name: Checkout security and build
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/order-access.server.ts"
+      - "src/lib/orders.functions.ts"
+      - "src/lib/order-schemas.ts"
+      - "src/lib/catalog.functions.ts"
+      - "src/lib/shop.ts"
+      - "src/routes/checkout.tsx"
+      - "src/routes/pay-order.tsx"
+      - "tests/**"
+      - ".github/workflows/checkout-security.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Test order access capability
+        run: node --experimental-strip-types --test tests/order-access.test.ts
+      - name: Confirm public bank endpoint and fallback are absent
+        run: |
+          ! grep -R "getBankDetails" src
+          ! grep -R "FALLBACK_BANK_DETAILS" src
+          ! grep -R "bankDetailsQueryOptions" src
+      - name: Production build (regenerates TanStack route tree)
+        run: bun run build
+      - name: Type check
+        run: bunx tsc --noEmit
+      # Repository-wide Prettier currently reports hundreds of pre-existing
+      # violations; check semantic lint rules on all checkout changes here.
+      - name: Semantic lint for checkout changes
+        run: |
+          bunx eslint --rule 'prettier/prettier: off' \
+            src/lib/order-access.server.ts \
+            src/lib/orders.functions.ts \
+            src/lib/order-schemas.ts \
+            src/lib/catalog.functions.ts \
+            src/lib/shop.ts \
+            src/routes/checkout.tsx \
+            src/routes/pay-order.tsx \
+            tests/order-access.test.ts
