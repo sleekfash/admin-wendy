@@ -65,16 +65,16 @@ export const Route = createFileRoute("/menu/$slug")({
 function ProductNotFound() {
   return (
     <Section>
-      <h1 className="text-4xl">That bake isn&rsquo;t on the menu</h1>
+      <h1 className="text-4xl">That cake design isn&rsquo;t available</h1>
       <p className="mt-4 text-muted-foreground">
-        It may have been renamed or retired. The full menu is still here.
+        It may have been renamed or retired. Explore our other cake designs.
       </p>
       <Link
         to="/menu"
         search={{}}
         className="mt-6 inline-block rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
       >
-        Back to the menu
+        Back to cake designs
       </Link>
     </Section>
   );
@@ -102,7 +102,7 @@ function ProductPage() {
       <Section className="!py-0">
         <nav aria-label="Breadcrumb" className="pt-10 text-sm text-muted-foreground">
           <Link to="/menu" search={{}} className="hover:text-primary">
-            Menu
+            Cake Designs
           </Link>
           <span className="px-2 text-gold">/</span>
           <span className="text-foreground">{product.name}</span>
