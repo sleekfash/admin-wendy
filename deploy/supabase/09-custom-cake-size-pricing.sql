@@ -93,7 +93,7 @@ BEGIN
   IF p.id = canonical AND (p.category_id IS DISTINCT FROM cake_category
     OR p_payload->>'payment_rule' <> 'deposit' OR base_price <> 0
     OR deposit <> 70) THEN
-    RAISE EXCEPTION 'Custom cakes require a zero base price and a 70% deposit.';
+    RAISE EXCEPTION 'Custom cakes require a zero base price and a 70 percent deposit.';
   END IF;
   before_state := jsonb_build_object('product', to_jsonb(p), 'choices', live_choices);
   UPDATE public.products SET
