@@ -14,9 +14,15 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
-insert into storage.buckets (id, name, public)
-values ('payment-slips', 'payment-slips', false)
-on conflict (id) do update set public = excluded.public;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'payment-slips', 'payment-slips', false, 15728640,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/heic']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -53,8 +59,8 @@ create policy "admins delete product images"
   on storage.objects for delete to authenticated
   using (bucket_id = 'product-images' and public.is_admin());
 
--- Payment slips: no client-side access at all. Customers upload and admins view
--- them through the app's server code using the secret service key.
+-- Payment slips: customers upload using order-scoped signed URLs. Admin reads
+-- remain server-mediated; the bucket has no public read or write policy.
 
 -- Testimonial images follow the same server-mediated model. Staff receive a
 -- short-lived signed upload URL and storefront visitors receive a short-lived

@@ -2,6 +2,10 @@ import { z } from "zod";
 
 /** Client-safe validation shared by every order entry point. */
 
+export const MAX_TRANSFER_RECEIPT_BYTES = 15 * 1024 * 1024;
+export const TRANSFER_RECEIPT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"] as const;
+export const PAYMENT_SLIPS_BUCKET = "payment-slips";
+
 export const MAX_SLIP_BYTES = 5 * 1024 * 1024;
 
 export const SLIP_CONTENT_TYPES = [

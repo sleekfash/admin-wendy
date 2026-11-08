@@ -6,10 +6,15 @@ import { PageHeader, Section } from "@/components/site/Bits";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/shop";
-import { getTransferPayment, submitTransferReceipt } from "@/lib/orders.functions";
+import { getTransferPayment, prepareTransferReceipt, submitTransferReceipt } from "@/lib/orders.functions";
+import { MAX_TRANSFER_RECEIPT_BYTES, PAYMENT_SLIPS_BUCKET, TRANSFER_RECEIPT_TYPES } from "@/lib/order-schemas";
+import { supabase } from "@/integrations/supabase/client";
 
-const MAX_BYTES = 5 * 1024 * 1024;
-const MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+type ReceiptType = (typeof TRANSFER_RECEIPT_TYPES)[number];
+
+function isReceiptType(type: string): type is ReceiptType {
+  return TRANSFER_RECEIPT_TYPES.some((supportedType) => supportedType === type);
+}
 
 export const Route = createFileRoute("/pay-order")({
   head: () => ({
@@ -38,18 +43,10 @@ type Payment = {
   };
 };
 
-function readFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Unable to read your receipt."));
-    reader.readAsDataURL(file);
-  });
-}
-
 function OrderPaymentPage() {
   const getPayment = useServerFn(getTransferPayment);
-  const uploadReceipt = useServerFn(submitTransferReceipt);
+  const prepareReceipt = useServerFn(prepareTransferReceipt);
+  const confirmReceipt = useServerFn(submitTransferReceipt);
   const [reference, setReference] = useState("");
   const [access, setAccess] = useState("");
   const [payment, setPayment] = useState<Payment | null>(null);
@@ -59,7 +56,7 @@ function OrderPaymentPage() {
   const [payer, setPayer] = useState("");
   const [transferReference, setTransferReference] = useState("");
   const [date, setDate] = useState("");
-  const [slip, setSlip] = useState<File | null>(null);
+  const [slip, setSlip] = useState<{ file: File; uploadId: string } | null>(null);
 
   useEffect(() => {
     // The bearer access key is in the URL fragment: it is never sent as part
@@ -83,26 +80,31 @@ function OrderPaymentPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy || !slip) return;
-    if (!MIME_TYPES.includes(slip.type) || slip.size === 0 || slip.size > MAX_BYTES) {
-      toast.error("Upload a valid JPG, PNG, WEBP, HEIC or PDF receipt under 5MB.");
+    const { file, uploadId } = slip;
+    if (!isReceiptType(file.type) || file.size === 0 || file.size > MAX_TRANSFER_RECEIPT_BYTES) {
+      toast.error("Upload a JPG, PNG, WebP or HEIC receipt up to 15 MB.");
       return;
     }
     setBusy(true);
     try {
-      await uploadReceipt({
-        data: {
-          reference,
-          access,
-          payer_name: payer,
-          transfer_reference: transferReference || undefined,
-          transfer_date: date || undefined,
-          slip: {
-            filename: slip.name,
-            content_type: slip.type as "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "application/pdf",
-            data_base64: await readFile(slip),
+      const receipt = { reference, access, uploadId, contentType: file.type };
+      const upload = await prepareReceipt({ data: { ...receipt, size: file.size } });
+      if (upload.state === "ready") {
+        const { error: uploadError } = await supabase.storage
+          .from(PAYMENT_SLIPS_BUCKET)
+          .uploadToSignedUrl(upload.path, upload.token, file, { contentType: file.type });
+        if (uploadError) throw new Error("Could not upload the receipt. Please try again.");
+      }
+      if (upload.state !== "confirmed") {
+        await confirmReceipt({
+          data: {
+            ...receipt,
+            payer_name: payer,
+            transfer_reference: transferReference || undefined,
+            transfer_date: date || undefined,
           },
-        },
-      });
+        });
+      }
       setPayment((prev) => prev ? { ...prev, paymentStatus: "pending_verification", slipUploaded: true } : prev);
       setSlip(null);
       toast.success("Receipt submitted. Your payment is awaiting verification.");
@@ -167,8 +169,11 @@ function OrderPaymentPage() {
                       <Input id="date" type="date" value={date} onChange={e => setDate(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="slip">Payment receipt (JPG, PNG, WEBP, HEIC or PDF, max 5MB)</Label>
-                      <Input id="slip" required type="file" accept={MIME_TYPES.join(",")} onChange={e => setSlip(e.target.files?.[0] ?? null)} />
+                      <Label htmlFor="slip">Payment receipt (JPG, PNG, WebP or HEIC, up to 15 MB)</Label>
+                      <Input id="slip" required type="file" accept={TRANSFER_RECEIPT_TYPES.join(",")} disabled={busy} onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        setSlip(file ? { file, uploadId: crypto.randomUUID() } : null);
+                      }} />
                     </div>
                     <button type="submit" disabled={busy || !slip} className="rounded-sm bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
                       {busy ? "Submitting receipt…" : "Submit receipt for verification"}

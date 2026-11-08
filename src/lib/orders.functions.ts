@@ -3,21 +3,13 @@ import { z } from "zod";
 import {
   itemSchema,
   orderSchema,
-  MAX_SLIP_BYTES,
-  SLIP_EXTENSIONS,
-  slipSchema,
+  MAX_TRANSFER_RECEIPT_BYTES,
+  PAYMENT_SLIPS_BUCKET,
+  TRANSFER_RECEIPT_TYPES,
   type PlaceOrderInput,
 } from "@/lib/order-schemas";
 
 export type { PlaceOrderInput };
-
-function decodeBase64(data: string): Uint8Array {
-  const clean = data.includes(",") ? data.slice(data.indexOf(",") + 1) : data;
-  const binary = atob(clean);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => orderSchema.parse(data))
@@ -168,62 +160,57 @@ export const getTransferPayment = createServerFn({ method: "POST" })
     };
   });
 
-/** Upload evidence against the same existing order; never create a second order. */
-export const submitTransferReceipt = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z.object({
-      reference: z.string().trim().min(4).max(40),
-      access: z.string().regex(/^[a-f0-9]{64}$/),
-      payer_name: z.string().trim().min(1).max(100),
-      transfer_reference: z.string().trim().max(80).optional(),
-      transfer_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-      slip: slipSchema,
-    }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { verifyOrderPaymentAccess } = await import("@/lib/order-access.server");
-    const { data: order } = await supabaseAdmin
-      .from("orders")
-      .select("id, reference, checkout_method, payment_status, status, slip_path")
-      .eq("reference", data.reference)
-      .maybeSingle();
-    if (!order || order.checkout_method !== "bank_transfer" ||
-        !verifyOrderPaymentAccess(order.id, order.reference, data.access)) {
-      throw new Error("Invalid payment link.");
-    }
-    if (order.status === "cancelled" || order.payment_status !== "not_paid") {
-      throw new Error("This order cannot accept a new receipt. Please contact the bakery.");
-    }
-    if (order.slip_path) {
-      throw new Error("A receipt has already been submitted for this order.");
-    }
-    const bytes = decodeBase64(data.slip.data_base64);
-    if (bytes.byteLength === 0 || bytes.byteLength > MAX_SLIP_BYTES) {
-      throw new Error("Upload a payment receipt smaller than 5MB.");
-    }
-    // Validate the actual file signature, not only its declared MIME type.
-    const mime = data.slip.content_type;
-    const head = bytes.slice(0, 12);
-    const ascii = (start: number, end: number) => String.fromCharCode(...head.slice(start, end));
-    const valid = mime === "application/pdf"
-      ? ascii(0, 5) === "%PDF-"
-      : mime === "image/png"
-        ? head[0] === 137 && ascii(1, 4) === "PNG"
-        : mime === "image/jpeg"
-          ? head[0] === 255 && head[1] === 216 && head[2] === 255
-          : mime === "image/webp"
-            ? ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP"
-            : mime === "image/heic"
-              ? ascii(4, 8) === "ftyp"
-              : false;
-    if (!valid) throw new Error("The receipt file does not match its declared format.");
+const receiptUploadSchema = z.object({
+  reference: z.string().trim().min(4).max(40),
+  access: z.string().regex(/^[a-f0-9]{64}$/),
+  uploadId: z.string().uuid(),
+  contentType: z.enum(TRANSFER_RECEIPT_TYPES),
+});
 
-    const path = `${order.id}/slip.${SLIP_EXTENSIONS[mime]}`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from("payment-slips")
-      .upload(path, bytes, { contentType: mime, upsert: false });
-    if (uploadError) throw new Error("Could not upload the receipt. Please try again.");
+export const prepareTransferReceipt = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => receiptUploadSchema.extend({
+    size: z.number().int().positive().max(MAX_TRANSFER_RECEIPT_BYTES),
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { receiptTarget } = await import("@/lib/transfer-receipt.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { path, alreadySubmitted } = await receiptTarget(data);
+    if (alreadySubmitted) return { state: "confirmed" as const };
+
+    const bucket = supabaseAdmin.storage.from(PAYMENT_SLIPS_BUCKET);
+    const { data: exists } = await bucket.exists(path);
+    if (exists) return { state: "uploaded" as const };
+
+    const { data: upload, error } = await bucket.createSignedUploadUrl(path, { upsert: false });
+    if (error || !upload) throw new Error("Could not start the receipt upload. Please try again.");
+    return { state: "ready" as const, path, token: upload.token };
+  });
+
+export const submitTransferReceipt = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => receiptUploadSchema.extend({
+    payer_name: z.string().trim().min(1).max(100),
+    transfer_reference: z.string().trim().max(80).optional(),
+    transfer_date: z.string().date().optional(),
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { receiptTarget, matchesReceiptImage } = await import("@/lib/transfer-receipt.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { order, path, alreadySubmitted } = await receiptTarget(data);
+    if (alreadySubmitted) return { ok: true as const, reference: order.reference };
+
+    const bucket = supabaseAdmin.storage.from(PAYMENT_SLIPS_BUCKET);
+    const { data: file, error: downloadError } = await bucket.download(path);
+    if (downloadError || !file) {
+      throw new Error("Could not find the uploaded receipt. Please try again.");
+    }
+    const header = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+    if (
+      file.size === 0 || file.size > MAX_TRANSFER_RECEIPT_BYTES ||
+      file.type !== data.contentType || !matchesReceiptImage(header, data.contentType)
+    ) {
+      await bucket.remove([path]);
+      throw new Error("The receipt must be a JPG, PNG, WebP or HEIC image up to 15 MB.");
+    }
 
     const { data: updated, error: updateError } = await supabaseAdmin
       .from("orders")
@@ -236,12 +223,16 @@ export const submitTransferReceipt = createServerFn({ method: "POST" })
       })
       .eq("id", order.id)
       .eq("payment_status", "not_paid")
+      .neq("status", "cancelled")
       .is("slip_path", null)
       .select("id")
       .maybeSingle();
-    if (updateError || !updated) {
-      // The storage object may remain orphaned after a racing admin update.
-      await supabaseAdmin.storage.from("payment-slips").remove([path]);
+
+    if (updateError) throw new Error("Could not confirm the receipt. Please try again.");
+    if (!updated) {
+      const result = await supabaseAdmin.from("orders").select("slip_path").eq("id", order.id).single();
+      if (result.data?.slip_path === path) return { ok: true as const, reference: order.reference };
+      if (result.data) await bucket.remove([path]);
       throw new Error("Payment status changed. Please refresh your order before retrying.");
     }
     return { ok: true as const, reference: order.reference };
