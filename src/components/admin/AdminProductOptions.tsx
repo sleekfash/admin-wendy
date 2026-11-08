@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  CUSTOM_CAKE_RULE_GROUPS,
   isCustomCakeOptionGroup,
   isCustomCakeProduct,
   isCustomCakeRuleGroup,
@@ -105,7 +106,7 @@ export function AdminProductOptions({ productId }: { productId: string }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Choices customers pick when ordering. The amount is added to the product price.
+        Manage customer options and the amounts added to the product price.
       </p>
 
       {groups.map((g) => {
@@ -115,6 +116,12 @@ export function AdminProductOptions({ productId }: { productId: string }) {
         const protectedChoices = isCustomCakeOptionGroup(g.id);
         return (
           <div key={g.id} className="rounded-[0.75rem] border border-border p-3">
+            {g.id === CUSTOM_CAKE_RULE_GROUPS.tieringFee.id && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                Automatic stacking fee. Customers choose the tiers and the price for that tier count
+                is added to their quote.
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <Input
                 className="max-w-[200px]"

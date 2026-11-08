@@ -40,7 +40,34 @@ function totals(groups: Group[]): Set<number> | null {
   }
   return sums;
 }
-/** Lowest attainable configured total; never advertise an unorderable base. */
+function hasCakeRuleGroups(groups: Group[]): boolean {
+  return Object.values(CUSTOM_CAKE_RULE_GROUPS).every((rule) =>
+    groups.some(
+      (group) =>
+        group.id === rule.id &&
+        group.key === rule.key &&
+        group.required === rule.required &&
+        group.allow_multiple === rule.allowMultiple,
+    ),
+  );
+}
+
+/** Size-only prices for the initial custom cake selector. */
+export function directCakeSizes(p: Product, groups: Group[]) {
+  if (!isCustomCakeProduct(p.id) || !hasCakeRuleGroups(groups)) return [];
+  const base = p.price_cents;
+  const minimum = p.buttercream_minimum_cents;
+  if (base == null || minimum == null || minimum < 1) return [];
+  if (groups.some((group) => group.required && group.key !== "size-layers")) return [];
+
+  return (groups.find((group) => group.key === "size-layers")?.choices ?? [])
+    .filter((choice) => /^(6|8|10)-inch-/.test(choice.key))
+    .map((choice) => ({ key: choice.key, price_cents: base + choice.price_delta_cents }))
+    .filter((choice) => choice.price_cents >= minimum)
+    .sort((a, b) => a.price_cents - b.price_cents);
+}
+
+/** Advertise the cheapest size-only cake when available, or an attainable configured total. */
 export function startingPrice(p: Product, groups: Group[]): number | null {
   if (p.price_cents == null) return null;
   let best = Infinity;
@@ -52,16 +79,9 @@ export function startingPrice(p: Product, groups: Group[]): number | null {
       if (total >= 0) best = Math.min(best, total);
     }
   } else {
-    for (const rule of Object.values(CUSTOM_CAKE_RULE_GROUPS)) {
-      const g = groups.find((g) => g.id === rule.id);
-      if (
-        !g ||
-        g.key !== rule.key ||
-        g.required !== rule.required ||
-        g.allow_multiple !== rule.allowMultiple
-      )
-        return null;
-    }
+    if (!hasCakeRuleGroups(groups)) return null;
+    const plainSizes = directCakeSizes(p, groups);
+    if (plainSizes.length > 0) return plainSizes[0]!.price_cents;
     const size = groups.find((g) => g.key === "size-layers");
     const extra = groups.find((g) => g.key === "extra-tiers");
     const fee = groups.find((g) => g.key === "tiering-fee");

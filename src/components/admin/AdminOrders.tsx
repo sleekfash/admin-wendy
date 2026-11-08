@@ -375,6 +375,9 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                     >
                       <span>
                         {item.quantity} × {item.name}
+                        {item.notes && (
+                          <span className="block text-xs text-muted-foreground">{item.notes}</span>
+                        )}
                         {Array.isArray(item.options_snapshot) &&
                           item.options_snapshot.length > 0 && (
                             <span className="block text-xs text-muted-foreground">

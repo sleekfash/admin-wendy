@@ -52,6 +52,7 @@ export type ShopProduct = {
   image_key: string | null;
   image_url: string | null;
   options: ProductOptionGroup[];
+  direct_cake_sizes?: { key: string; price_cents: number }[];
   includes: string[];
   available: boolean;
   sort_order: number;
@@ -186,6 +187,7 @@ export async function fetchCatalog(): Promise<{
       serves: p.serves,
       image_key: p.image_key,
       image_url: p.image_url,
+      ...(isCustomCakeProduct(p.id) ? { direct_cake_sizes: data.cake_sizes } : {}),
       options:
         groupsByProduct.get(
           isCakeDesignProduct(p.id, p.category_id) ? CUSTOM_CAKE_PRODUCT_ID : p.id,

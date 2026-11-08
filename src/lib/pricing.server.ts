@@ -274,9 +274,6 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
     }
 
     const base = product.price_cents!;
-    const unitTotal = base + optionsTotal;
-    if (unitTotal < 0) throw new PricingError(`${product.name} is misconfigured.`);
-
     if (cakeGroups) {
       const sizeSelections = selectedByGroupId.get(cakeGroups.sizeLayers.id) ?? [];
       if (sizeSelections.length !== 1) {
@@ -308,12 +305,24 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       const tierCount = 1 + extraTiers.length;
       const expectedTieringFee =
         tierCount === 2 ? "tiering-2-tiers" : tierCount === 3 ? "tiering-3-tiers" : null;
-      if (expectedTieringFee !== (tieringFee?.choice_key ?? null)) {
+      if (tieringFee && expectedTieringFee !== tieringFee.choice_key) {
         throw new PricingError(
-          expectedTieringFee
-            ? `Choose the ${tierCount}-tier stacking fee for this cake.`
-            : "Remove the tiering fee unless you add another cake tier.",
+          "The stacking fee no longer matches your cake. Rebuild your basket.",
         );
+      }
+      if (expectedTieringFee && !tieringFee) {
+        const fee = choicesByGroup
+          .get(cakeGroups.tieringFee.id)
+          ?.find((choice) => choice.key === expectedTieringFee && choice.available);
+        if (!fee) throw new PricingError("Stacking is unavailable for that number of tiers.");
+        optionsTotal += fee.price_delta_cents;
+        snapshot.push({
+          group_key: cakeGroups.tieringFee.key,
+          group_label: cakeGroups.tieringFee.label,
+          choice_key: fee.key,
+          choice_label: fee.label,
+          price_delta_cents: fee.price_delta_cents,
+        });
       }
 
       if (extraTiers.length > 0) {
@@ -338,13 +347,15 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       const minimum = fondant ? product.fondant_minimum_cents : product.buttercream_minimum_cents;
       if (minimum == null || minimum < 1)
         throw new PricingError("Cake minimums are not configured.");
-      if (unitTotal < minimum) {
+      if (base + optionsTotal < minimum) {
         throw new PricingError(
           `${product.name} has a ${fondant ? "fondant" : "buttercream"} minimum of $${(minimum / 100).toFixed(2)}. Add a larger size or more design details.`,
         );
       }
     }
 
+    const unitTotal = base + optionsTotal;
+    if (unitTotal < 0) throw new PricingError(`${product.name} is misconfigured.`);
     const lineTotal = unitTotal * request.quantity;
     const depositPercent =
       product.payment_rule === "deposit" ? (product.deposit_percent ?? null) : null;

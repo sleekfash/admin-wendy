@@ -59,3 +59,11 @@ The original accepted sequence on 17 October was **admin alignment → product i
 ## Next pending action
 
 Finish authorised shipping: publish the reconciled Vercel build and update the selected private Sites review while preserving its audience. Verify all twenty newly enabled uploads in the deployed storefront, no listing-card prices, correct product-page pricing and admin metadata/embedded pricing editor. Further image batches are paused. Mobile/browser infrastructure limits must be reported accurately. Do not submit orders or payments as part of release smoke checks.
+
+## Custom cake ordering review branch
+
+On 8 November 2026, the owner confirmed `sleekfash/admin-wendy` and authorized storefront and admin changes on `codex/custom-cake-ordering` for a draft pull request. The owner retains the merge decision. Scope is the custom celebration cake configurator, shared pricing and the admin order view.
+
+The review change selects the lowest-priced size that meets the plain cake minimum, reveals extras on demand and derives stacking fees on the server. Existing baskets with a matching fee selection are charged once. Admin order details display the saved item design note and option snapshot. No per-size serving figures were added because the catalog fixture records only “Varies by size.”
+
+Verification used the local catalog fixture. Plain, topper and two-tier cake totals and deposits agreed from product page to checkout in 390 px and 1280 px Chromium. Pricing fixtures also covered fondant, three tiers, legacy baskets and unavailable fees. Browser checks stopped at checkout. Authenticated admin browser verification and production publication are outside these results. The next step is the owner's review of the draft pull request.
