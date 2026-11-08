@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { Lockup } from "./Brand";
-import { BUSINESS } from "@/data/catalog";
 import { CartDrawer } from "@/components/site/CartDrawer";
 
 const NAV = [
@@ -39,12 +38,6 @@ export function SiteHeader() {
 
   return (
     <>
-      <div className="border-b border-border/60 bg-background text-foreground">
-        <p className="eyebrow mx-auto max-w-[1200px] px-5 py-2 text-center text-[11px] text-muted-foreground">
-          Now booking {BUSINESS.bookingMonth} · Pickup in Etobicoke · Certified Food Handler
-        </p>
-      </div>
-
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-5 py-3">
           <Lockup />
