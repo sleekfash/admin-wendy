@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, Landmark, Upload, CreditCard } from "lucide-react";
+import { MessageCircle, Landmark, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, Section } from "@/components/site/Bits";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCart } from "@/lib/cart";
 import {
   catalogQueryOptions,
-  bankDetailsQueryOptions,
   formatMoney,
   FALLBACK_SETTINGS,
-  FALLBACK_BANK_DETAILS,
 } from "@/lib/shop";
 import { placeOrder, previewCart, type PlaceOrderInput } from "@/lib/orders.functions";
 import { cardPaymentsEnabled, startCardPayment } from "@/lib/payments.functions";
@@ -25,15 +23,6 @@ type PayMethod = "whatsapp" | "bank_transfer" | "card";
 const TITLE = "Checkout — Wendy's Bakehouse, Cakes in Toronto";
 const DESC =
   "Confirm your order over WhatsApp or by bank transfer, for collection in Etobicoke, Toronto.";
-
-const MAX_SLIP_BYTES = 5 * 1024 * 1024;
-const ALLOWED_SLIP_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "application/pdf",
-] as const;
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -54,15 +43,6 @@ function minDate() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read that file."));
-    reader.readAsDataURL(file);
-  });
 }
 
 type Receipt = {
@@ -99,8 +79,6 @@ function CheckoutPage() {
   const checkCard = useServerFn(cardPaymentsEnabled);
   const { data: catalog } = useQuery(catalogQueryOptions);
   const settings = catalog?.settings ?? FALLBACK_SETTINGS;
-  const { data: bankData } = useQuery(bankDetailsQueryOptions(items.map((i) => i.slug)));
-  const bank = bankData ?? FALLBACK_BANK_DETAILS;
   const { data: cardState } = useQuery({
     queryKey: ["card-payments-enabled"],
     queryFn: () => checkCard({}),
@@ -110,7 +88,6 @@ function CheckoutPage() {
 
   const [method, setMethod] = useState<PayMethod>("whatsapp");
   const [busy, setBusy] = useState(false);
-  const [slip, setSlip] = useState<File | null>(null);
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
   const [done, setDone] = useState<Receipt | null>(null);
   const [form, setForm] = useState({
@@ -125,9 +102,6 @@ function CheckoutPage() {
     occasion: "",
     notes: "",
     allergies: "",
-    payer_name: "",
-    transfer_reference: "",
-    transfer_date: "",
   });
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -202,17 +176,6 @@ function CheckoutPage() {
       return;
     }
 
-    if (method === "bank_transfer") {
-      if (!form.payer_name.trim()) {
-        toast.error("Add the name the transfer was sent from.");
-        return;
-      }
-      if (slip && slip.size > MAX_SLIP_BYTES) {
-        toast.error("Payment slips must be smaller than 5MB.");
-        return;
-      }
-    }
-
     setBusy(true);
     try {
       const core = {
@@ -247,23 +210,19 @@ function CheckoutPage() {
       const payload: PlaceOrderInput = {
         ...core,
         checkout_method: method,
-        payer_name: method === "bank_transfer" ? form.payer_name : undefined,
-        transfer_reference:
-          method === "bank_transfer" ? form.transfer_reference || undefined : undefined,
-        transfer_date: method === "bank_transfer" ? form.transfer_date || undefined : undefined,
       };
-
-      if (method === "bank_transfer" && slip) {
-        payload.slip = {
-          filename: slip.name,
-          content_type: slip.type as NonNullable<PlaceOrderInput["slip"]>["content_type"],
-          data_base64: await readFileAsBase64(slip),
-        };
-      }
 
       const result = await submitOrder({ data: payload });
 
       const waLink = buildWhatsAppLink(result);
+      if (method === "bank_transfer") {
+        if (!result.paymentAccess) throw new Error("Order saved, but the secure payment link could not be created. Please contact the bakery with your order reference.");
+        // Fragment keeps the access capability out of server logs and referrer headers.
+        const destination = `/pay-order?reference=${encodeURIComponent(result.reference)}#access=${encodeURIComponent(result.paymentAccess)}`;
+        clear();
+        window.location.assign(destination);
+        return;
+      }
       clear();
       setDone({
         reference: result.reference,
@@ -369,7 +328,7 @@ function CheckoutPage() {
       <PageHeader
         eyebrow="Checkout"
         title="Your details, then how you'd like to pay."
-        lead="Confirm over WhatsApp with an itemised receipt, or pay by bank transfer and upload your slip."
+        lead="Submit your order first. Bank details and receipt upload are available on the next page only after your order is saved."
       />
 
       <Section>
@@ -563,72 +522,10 @@ function CheckoutPage() {
                 </TabsContent>
 
                 <TabsContent value="bank_transfer" className="mt-5 space-y-4">
-                  <div className="rounded-[1rem] bg-secondary p-4 text-sm">
-                    <p className="font-semibold">{bank.bank_account_name}</p>
-                    <p className="text-muted-foreground">{bank.bank_name}</p>
-                    <p className="text-muted-foreground">Account {bank.bank_account_number}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{bank.bank_note}</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="payer">Name on the transfer</Label>
-                      <Input
-                        id="payer"
-                        maxLength={100}
-                        value={form.payer_name}
-                        onChange={(e) => set("payer_name", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tref">Transfer reference</Label>
-                      <Input
-                        id="tref"
-                        maxLength={80}
-                        value={form.transfer_reference}
-                        onChange={(e) => set("transfer_reference", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tdate">Date sent</Label>
-                    <Input
-                      id="tdate"
-                      type="date"
-                      value={form.transfer_date}
-                      onChange={(e) => set("transfer_date", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="slip">Payment slip (JPG, PNG, WEBP or PDF, max 5MB)</Label>
-                    <div className="flex items-center gap-3">
-                      <Upload className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                      <Input
-                        id="slip"
-                        type="file"
-                        accept={ALLOWED_SLIP_TYPES.join(",")}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
-                          if (!file) return setSlip(null);
-                          if (!ALLOWED_SLIP_TYPES.includes(file.type as never)) {
-                            toast.error("Upload a JPG, PNG, WEBP or PDF.");
-                            e.target.value = "";
-                            return setSlip(null);
-                          }
-                          if (file.size > MAX_SLIP_BYTES) {
-                            toast.error("That file is larger than 5MB.");
-                            e.target.value = "";
-                            return setSlip(null);
-                          }
-                          setSlip(file);
-                        }}
-                      />
-                    </div>
-                    {slip && (
-                      <p className="text-xs text-muted-foreground">
-                        {slip.name} · {(slip.size / 1024 / 1024).toFixed(2)}MB
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Submit your order to continue to the secure payment page. The bank account
+                    details and receipt upload are shown only after your order has been saved.
+                  </p>
                 </TabsContent>
               </Tabs>
             </div>
@@ -748,7 +645,7 @@ function CheckoutPage() {
                     ? `Pay ${totals ? formatMoney(totals.due_now_cents) : "by card"} securely`
                     : method === "whatsapp"
                       ? "Place order & chat"
-                      : "Place order & submit slip"}
+                      : "Submit order & continue to payment"}
               </button>
               <p className="mt-3 text-xs text-muted-foreground">
                 {method === "card"
