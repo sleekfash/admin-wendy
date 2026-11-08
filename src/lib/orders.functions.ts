@@ -32,9 +32,6 @@ export const placeOrder = createServerFn({ method: "POST" })
       checkout_method: data.checkout_method,
       payment_provider: isTransfer ? "bank_transfer" : "whatsapp",
       payment_status: "not_paid",
-      payer_name: data.payer_name ?? null,
-      transfer_reference: data.transfer_reference ?? null,
-      transfer_date: data.transfer_date || null,
     });
 
     return {
