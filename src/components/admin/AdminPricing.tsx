@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAdminPricing, saveAdminPricing } from "@/lib/admin-pricing.functions";
-import { isCustomCakeProduct } from "@/lib/custom-cake-contract";
+import { CUSTOM_CAKE_RULE_GROUPS, isCustomCakeProduct } from "@/lib/custom-cake-contract";
 import { isCakeDesignProduct } from "@/lib/cake-designs";
 import { formatMoney } from "@/lib/shop";
 import { Button } from "@/components/ui/button";
@@ -191,7 +191,11 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
           )}
           {groups.map((g) => (
             <fieldset className="space-y-3 rounded border p-4" key={g.id}>
-              <legend>{g.label}</legend>
+              <legend>
+                {g.id === CUSTOM_CAKE_RULE_GROUPS.tieringFee.id
+                  ? "Automatic stacking fees"
+                  : g.label}
+              </legend>
               {choices
                 .filter((c) => c.group_id === g.id)
                 .map((c) => field(c.id, `${c.label} — adjustment (CAD)`, c.price_delta_cents))}

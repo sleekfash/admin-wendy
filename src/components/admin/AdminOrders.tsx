@@ -13,6 +13,7 @@ import {
   type OrderStatus,
   type PaymentStatus,
 } from "@/lib/order-status";
+import { CUSTOM_CAKE_RULE_GROUPS } from "@/lib/custom-cake-contract";
 import { formatMoney } from "@/lib/shop";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -383,11 +384,19 @@ export function AdminOrders({ paymentsOnly = false }: { paymentsOnly?: boolean }
                             <span className="block text-xs text-muted-foreground">
                               {(
                                 item.options_snapshot as {
+                                  group_key?: string;
                                   group_label: string;
                                   choice_label: string;
+                                  price_delta_cents?: number;
                                 }[]
                               )
-                                .map((o) => `${o.group_label}: ${o.choice_label}`)
+                                .map((option) => {
+                                  const label = `${option.group_label}: ${option.choice_label}`;
+                                  return option.group_key === CUSTOM_CAKE_RULE_GROUPS.tieringFee.key &&
+                                    typeof option.price_delta_cents === "number"
+                                    ? `${label} (${formatMoney(option.price_delta_cents)} each)`
+                                    : label;
+                                })
                                 .join(" · ")}
                             </span>
                           )}
