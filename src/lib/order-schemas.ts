@@ -71,7 +71,6 @@ export const orderSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
     .or(z.literal("")),
-  slip: slipSchema.optional(),
 });
 
 export const cardOrderSchema = z.object(customerFields);
