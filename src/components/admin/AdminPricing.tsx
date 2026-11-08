@@ -40,7 +40,7 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
     setReview(false);
     setValues({
       ...(!isCustomCakeProduct(next) ? { base: String((p.price_cents ?? 0) / 100) } : {}),
-      deposit: String(p.deposit_percent ?? 70),
+      deposit: String(isCustomCakeProduct(next) ? 70 : (p.deposit_percent ?? 70)),
       ...Object.fromEntries(
         captured.choices.map((c) => [c.id, String(c.price_delta_cents / 100)]),
       ),
@@ -175,8 +175,9 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
               <option value="deposit">Percentage deposit</option>
             </select>
           </label>
-          {rule === "deposit" &&
-            field("deposit", "Deposit (%)", `${product.deposit_percent ?? 70}%`)}
+          {rule === "deposit" && (isCustomCakeProduct(id)
+            ? <p className="text-sm font-medium">Deposit: 70% (fixed for custom cakes)</p>
+            : field("deposit", "Deposit (%)", `${product.deposit_percent ?? 70}%`))}
           {isCustomCakeProduct(id) && (
             <p className="rounded border border-border p-4 text-sm text-muted-foreground">
               Cake prices come directly from each available size and layer combination below.
