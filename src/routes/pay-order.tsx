@@ -22,7 +22,21 @@ export const Route = createFileRoute("/pay-order")({
   component: OrderPaymentPage,
 });
 
-type Payment = Awaited<ReturnType<ReturnType<typeof useServerFn<typeof getTransferPayment>>>>;
+type Payment = {
+  reference: string;
+  paymentStatus: string;
+  cancelled: boolean;
+  totalCents: number;
+  dueNowCents: number;
+  balanceCents: number;
+  slipUploaded: boolean;
+  bank: {
+    bank_account_name: string;
+    bank_account_number: string;
+    bank_name: string;
+    bank_note: string | null;
+  };
+};
 
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
