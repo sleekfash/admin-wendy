@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, MapPin, ShieldCheck, Sparkles } from "lucide-react";
 import { BUSINESS } from "@/data/catalog";
-import { CustomCakeMontage } from "@/components/site/CakeArtwork";
 import { CatalogNotice } from "@/components/site/CatalogNotice";
 import {
   CUSTOM_CAKE_PRODUCT_SLUG,
@@ -72,24 +71,27 @@ function Index() {
 
   return (
     <>
-      <section className="relative bg-background text-foreground">
-        <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-14 md:min-h-[640px] md:grid-cols-12 md:items-center md:py-20">
-          <div className="relative -mx-5 -mt-14 md:absolute md:inset-y-0 md:right-0 md:mt-0 md:mx-0 md:w-[52%]">
-            <CustomCakeMontage
-              priority
-              ratio="aspect-[4/3] md:aspect-auto md:h-full"
-              className="hero-cake-montage"
-            />
-          </div>
-          <div className="relative z-10 md:order-1 md:col-span-6 md:pr-10">
-            <p className="eyebrow text-primary">Now booking {BUSINESS.bookingMonth}</p>
-            <h1 className="mt-5 text-[2.5rem] leading-[1.03] md:text-6xl">
-              Made-to-order <span className="text-primary">celebration cakes</span> in Toronto.
+      <section className="relative isolate overflow-hidden bg-[#201619] text-white">
+        <img
+          src="/brand/wendys-floral-hero.webp"
+          alt="Three-tier ivory celebration cake with pink and white flowers"
+          width={828}
+          height={1100}
+          fetchPriority="high"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[48%_40%] brightness-110 md:left-auto md:w-[68%] md:object-[50%_46%]"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,transparent_20%,rgba(32,22,25,0.4)_42%,#201619_75%)] md:bg-[linear-gradient(90deg,#201619_19%,#201619_31%,rgba(32,22,25,0.86)_43%,transparent_69%)]"
+        />
+        <div className="mx-auto flex min-h-[720px] max-w-[1200px] items-end px-5 pb-12 pt-[22rem] md:min-h-[680px] md:items-center md:py-20 xl:min-h-[760px]">
+          <div className="w-full md:max-w-[49%] md:pr-8">
+            <p className="eyebrow text-[#ffc4d5]">Now booking {BUSINESS.bookingMonth}</p>
+            <h1 className="mt-5 text-[2.5rem] font-bold leading-[1.03] text-white md:text-6xl">
+              <span className="text-[#ffc4d5]">Custom celebration cakes</span> in Toronto
             </h1>
-            <p className="mt-6 max-w-[56ch] text-lg text-muted-foreground">
-              Build your custom cake from a clear size-and-layer menu, then add only the design
-              details you want. Every choice is priced upfront by a Certified Food Handler baking to
-              order in Etobicoke.
+            <p className="mt-6 max-w-[48ch] text-lg text-white/90">
+              Choose your cake size, flavour and design, and see your price as you build.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -101,21 +103,21 @@ function Index() {
               <Link
                 to="/menu/$slug"
                 params={{ slug: CUSTOM_CAKE_PRODUCT_SLUG }}
-                className="rounded-sm border border-border px-6 py-3.5 text-sm font-semibold transition-colors hover:border-primary hover:text-primary"
+                className="rounded-sm border border-white/50 bg-black/20 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-white/15"
               >
                 Customize your cake
               </Link>
             </div>
-            <ul className="mt-10 grid gap-4 border-t border-border pt-6 text-sm text-muted-foreground sm:grid-cols-3">
+            <ul className="mt-10 grid gap-4 border-t border-white/25 pt-6 text-sm text-white/85 sm:grid-cols-3">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-bronze" aria-hidden="true" /> Certified Food
+                <ShieldCheck className="h-4 w-4 text-[#ffc4d5]" aria-hidden="true" /> Certified Food
                 Handler
               </li>
               <li className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-bronze" aria-hidden="true" /> Pickup in Etobicoke
+                <MapPin className="h-4 w-4 text-[#ffc4d5]" aria-hidden="true" /> Pickup in Etobicoke
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-bronze" aria-hidden="true" /> Baked to order
+                <Sparkles className="h-4 w-4 text-[#ffc4d5]" aria-hidden="true" /> Baked to order
               </li>
             </ul>
           </div>
