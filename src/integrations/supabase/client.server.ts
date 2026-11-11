@@ -4,13 +4,22 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { STAGING_PROJECT_REF, verifyStagingCredential } from '../../lib/staging-preflight';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
 
+let stagingPreflight: Promise<void> | undefined;
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return (input, init) => {
+  return async (input, init) => {
+    // Never send privileged requests from the isolated staging project until
+    // the service credential has been authenticated against that exact host.
+    if (process.env['SUPABASE_PROJECT_ID'] === STAGING_PROJECT_REF) {
+      stagingPreflight ??= verifyStagingCredential(process.env);
+      await stagingPreflight;
+    }
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
