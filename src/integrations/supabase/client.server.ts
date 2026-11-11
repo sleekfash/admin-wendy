@@ -16,7 +16,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return async (input, init) => {
     // Never send privileged requests from the isolated staging project until
     // the service credential has been authenticated against that exact host.
-    if (process.env['SUPABASE_PROJECT_ID'] === STAGING_PROJECT_REF) {
+    if (process.env['SUPABASE_PROJECT_ID'] === STAGING_PROJECT_REF ||
+        process.env['SUPABASE_URL'] === `https://${STAGING_PROJECT_REF}.supabase.co` ||
+        process.env['VERCEL_GIT_COMMIT_REF'] === 'feature/custom-cake-size-pricing-2026-11') {
       stagingPreflight ??= verifyStagingCredential(process.env);
       await stagingPreflight;
     }
