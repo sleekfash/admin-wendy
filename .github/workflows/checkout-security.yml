@@ -15,6 +15,9 @@ on:
       - "src/routes/checkout.tsx"
       - "src/routes/pay-order.tsx"
       - "tests/**"
+      - "scripts/verify-staging-preflight.ts"
+      - "src/lib/staging-preflight.ts"
+      - ".github/workflows/staging-preflight.yml"
       - ".github/workflows/checkout-security.yml"
   workflow_dispatch:
 
@@ -37,6 +40,8 @@ jobs:
         run: node --experimental-strip-types --test tests/order-access.test.ts
       - name: Test custom cake price matrix
         run: bun test tests/custom-cake-pricing.test.ts
+      - name: Test staging identity guard (no secrets or network)
+        run: node --experimental-strip-types --test tests/staging-preflight.test.ts
       - name: Confirm public bank endpoint and fallback are absent
         run: |
           ! grep -R "getBankDetails" src
@@ -60,6 +65,9 @@ jobs:
             src/routes/pay-order.tsx \
             tests/order-access.test.ts \
             tests/custom-cake-pricing.test.ts \
+            tests/staging-preflight.test.ts \
+            src/lib/staging-preflight.ts \
+            scripts/verify-staging-preflight.ts \
             src/lib/public-pricing.ts \
             src/lib/pricing.server.ts \
             src/components/admin/AdminPricing.tsx \
