@@ -20,6 +20,15 @@ export function validateStagingConfig(env: Record<string, string | undefined>): 
   }
   const key = env.SUPABASE_SERVICE_ROLE_KEY!;
   if (key.startsWith("sb_publishable_")) throw new Error("STAGING_PREFLIGHT: privileged key required");
+  if (!key.startsWith("sb_secret_")) {
+    // Legacy Supabase service_role credentials are JWTs; reject anon/user JWTs.
+    try {
+      const payload = JSON.parse(Buffer.from(key.split(".")[1] ?? "", "base64url").toString("utf8"));
+      if (payload.role !== "service_role") throw new Error("wrong role");
+    } catch {
+      throw new Error("STAGING_PREFLIGHT: expected service_role JWT or sb_secret key");
+    }
+  }
   return { url, key };
 }
 
