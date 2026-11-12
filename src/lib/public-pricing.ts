@@ -55,15 +55,13 @@ function hasCakeRuleGroups(groups: Group[]): boolean {
 /** Size-only prices for the initial custom cake selector. */
 export function directCakeSizes(p: Product, groups: Group[]) {
   if (!isCustomCakeProduct(p.id) || !hasCakeRuleGroups(groups)) return [];
-  const base = p.price_cents;
-  const minimum = p.buttercream_minimum_cents;
-  if (base == null || minimum == null || minimum < 1) return [];
+  if (p.price_cents == null) return [];
   if (groups.some((group) => group.required && group.key !== "size-layers")) return [];
 
   return (groups.find((group) => group.key === "size-layers")?.choices ?? [])
     .filter((choice) => /^(6|8|10)-inch-/.test(choice.key))
-    .map((choice) => ({ key: choice.key, price_cents: base + choice.price_delta_cents }))
-    .filter((choice) => choice.price_cents >= minimum)
+    .map((choice) => ({ key: choice.key, price_cents: choice.price_delta_cents }))
+    .filter((choice) => choice.price_cents >= 0)
     .sort((a, b) => a.price_cents - b.price_cents);
 }
 
@@ -91,8 +89,7 @@ export function startingPrice(p: Product, groups: Group[]): number | null {
       !extra ||
       !fee ||
       !fondant ||
-      p.buttercream_minimum_cents == null ||
-      p.fondant_minimum_cents == null
+      p.price_cents == null
     )
       return null;
     const structural = new Set(["size-layers", "extra-tiers", "tiering-fee", "fondant-covering"]);
@@ -123,15 +120,13 @@ export function startingPrice(p: Product, groups: Group[]): number | null {
           for (const finish of finishes)
             for (const delta of sums) {
               const total =
-                p.price_cents +
                 base.price_delta_cents +
                 (s?.price_delta_cents ?? 0) +
                 (t?.price_delta_cents ?? 0) +
                 (stacking?.price_delta_cents ?? 0) +
                 (finish?.price_delta_cents ?? 0) +
                 delta;
-              const minimum = finish ? p.fondant_minimum_cents : p.buttercream_minimum_cents;
-              if (total >= minimum) best = Math.min(best, total);
+              if (total >= 0) best = Math.min(best, total);
             }
         }
   }

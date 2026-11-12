@@ -39,10 +39,8 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
     setRule(p.payment_rule ?? "full");
     setReview(false);
     setValues({
-      base: String((p.price_cents ?? 0) / 100),
-      deposit: String(p.deposit_percent ?? 70),
-      buttercream: String((p.buttercream_minimum_cents ?? 13000) / 100),
-      fondant: String((p.fondant_minimum_cents ?? 28000) / 100),
+      ...(!isCustomCakeProduct(next) ? { base: String((p.price_cents ?? 0) / 100) } : {}),
+      deposit: String(isCustomCakeProduct(next) ? 70 : (p.deposit_percent ?? 70)),
       ...Object.fromEntries(
         captured.choices.map((c) => [c.id, String(c.price_delta_cents / 100)]),
       ),
@@ -59,11 +57,11 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
         data: {
           id,
           updated_at: product.updated_at,
-          price_cents: cents(values["base"]!),
+          price_cents: isCustomCakeProduct(id) ? 0 : cents(values["base"]!),
           payment_rule: rule,
           deposit_percent: Number(values["deposit"]),
-          buttercream_minimum_cents: isCustomCakeProduct(id) ? cents(values["buttercream"]!) : null,
-          fondant_minimum_cents: isCustomCakeProduct(id) ? cents(values["fondant"]!) : null,
+          buttercream_minimum_cents: null,
+          fondant_minimum_cents: null,
           expected_choices: choices,
           choices: choices.map((c) => ({ id: c.id, price_delta_cents: cents(values[c.id]!) })),
         },
@@ -163,7 +161,7 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
             </div>
           )}
           {review && <h3 className="font-display text-xl">Review pricing changes</h3>}
-          {field("base", "Base price (CAD)", product.price_cents ?? 0)}
+          {!isCustomCakeProduct(id) && field("base", "Base price (CAD)", product.price_cents ?? 0)}
           <label className="block">
             Payment rule
             <select
@@ -177,28 +175,36 @@ export function AdminPricing({ productId }: { productId?: string | undefined } =
               <option value="deposit">Percentage deposit</option>
             </select>
           </label>
-          {rule === "deposit" &&
-            field("deposit", "Deposit (%)", `${product.deposit_percent ?? 70}%`)}
+          {rule === "deposit" && (isCustomCakeProduct(id)
+            ? <p className="text-sm font-medium">Deposit: 70% (fixed for custom cakes)</p>
+            : field("deposit", "Deposit (%)", `${product.deposit_percent ?? 70}%`))}
           {isCustomCakeProduct(id) && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {field(
-                "buttercream",
-                "Buttercream minimum (CAD)",
-                product.buttercream_minimum_cents ?? 13000,
-              )}
-              {field("fondant", "Fondant minimum (CAD)", product.fondant_minimum_cents ?? 28000)}
-            </div>
+            <p className="rounded border border-border p-4 text-sm text-muted-foreground">
+              Cake prices come directly from each available size and layer combination below.
+              There is no additional base price or minimum-price surcharge. The storefront
+              derives its starting prices from these combinations and the selected finish.
+            </p>
           )}
           {groups.map((g) => (
             <fieldset className="space-y-3 rounded border p-4" key={g.id}>
               <legend>
                 {g.id === CUSTOM_CAKE_RULE_GROUPS.tieringFee.id
                   ? "Automatic stacking fees"
-                  : g.label}
+                  : g.id === CUSTOM_CAKE_RULE_GROUPS.sizeLayers.id
+                    ? "Cake Size & Layer Pricing (CAD)"
+                    : g.label}
               </legend>
               {choices
                 .filter((c) => c.group_id === g.id)
-                .map((c) => field(c.id, `${c.label} — adjustment (CAD)`, c.price_delta_cents))}
+                .map((c) =>
+                  isCustomCakeProduct(id) && !c.available
+                    ? <p key={c.id} className="text-sm text-muted-foreground">{c.label} — not offered</p>
+                    : field(
+                        c.id,
+                        `${c.label} — ${g.id === CUSTOM_CAKE_RULE_GROUPS.sizeLayers.id ? "price (CAD)" : "adjustment (CAD)"}`,
+                        c.price_delta_cents,
+                      ),
+                )}
             </fieldset>
           ))}
           {review ? (
