@@ -24,7 +24,7 @@ test("preflight accepts only successful authentication against staging host", as
   let calls = 0;
   const mock = (async (input: string | URL | Request, init?: RequestInit) => {
     calls++;
-    assert.equal(String(input), `${url}/rest/v1/`);
+    assert.equal(String(input), `${url}/auth/v1/admin/users?per_page=1`);
     assert.equal(init?.method, "GET");
     assert.equal(new Headers(init?.headers).get("apikey"), env.SUPABASE_SERVICE_ROLE_KEY);
     assert.equal(new Headers(init?.headers).get("Authorization"), null);
@@ -35,4 +35,12 @@ test("preflight accepts only successful authentication against staging host", as
   await assert.rejects(verifyStagingCredential(env, (async () => ({ ok: false })) as typeof fetch), /verification failed/);
   await assert.rejects(verifyStagingCredential({ ...env, SUPABASE_URL: "https://production.supabase.co" }, mock), /mismatch/);
   assert.equal(calls, 1);
+});
+
+test("preflight fails closed for rejected service-role authorization and network errors", async () => {
+  const rejected = (async () => ({ ok: false, status: 403 })) as typeof fetch;
+  await assert.rejects(verifyStagingCredential(env, rejected), /verification failed/);
+  const networkFailure = (async () => { throw new Error("private network detail"); }) as typeof fetch;
+  await assert.rejects(verifyStagingCredential(env, networkFailure), /verification failed/);
+  assert.throws(() => validateStagingConfig({ ...env, SUPABASE_SERVICE_ROLE_KEY: "not-a-key" }), /expected service_role/);
 });
