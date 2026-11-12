@@ -41,7 +41,7 @@ export async function verifyStagingCredential(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetcher(`${url}/rest/v1/`, {
+    const response = await fetcher(`${url}/auth/v1/admin/users?per_page=1`, {
       method: "GET",
       headers: {
         apikey: key,
@@ -50,8 +50,9 @@ export async function verifyStagingCredential(
       redirect: "error",
       signal: controller.signal,
     });
-    // The root REST endpoint returns the PostgREST OpenAPI document.
-    // A 2xx response proves the credential is accepted by this exact staging host.
+    // Admin users endpoint requires service-role authorization, unlike the public
+    // PostgREST root. Never read, log, or persist the response body.
+    // This is a read-only privilege probe, not a substitute for environment isolation.
     if (!response.ok) throw new Error("STAGING_PREFLIGHT: credential rejected by staging");
   } catch {
     throw new Error("STAGING_PREFLIGHT: credential verification failed; writes blocked");
