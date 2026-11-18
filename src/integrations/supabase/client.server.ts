@@ -12,8 +12,15 @@ function isNewSupabaseApiKey(value: string): boolean {
 
 let stagingPreflight: Promise<void> | undefined;
 
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
+function createSupabaseFetch(supabaseKey: string, supabaseUrl: string): typeof fetch {
+  const allowedOrigin = new URL(supabaseUrl).origin;
   return async (input, init) => {
+    // Prevent service-role credential leakage to another origin, including
+    // absolute URLs accidentally supplied by a library or caller.
+    const requestUrl = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+    if (requestUrl.origin !== allowedOrigin) {
+      throw new Error('[Supabase] Privileged request blocked: unexpected destination');
+    }
     // Never send privileged requests from the isolated staging project until
     // the service credential has been authenticated against that exact host.
     if (process.env['SUPABASE_PROJECT_ID'] === STAGING_PROJECT_REF ||
@@ -36,7 +43,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set('apikey', supabaseKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, { ...init, headers, redirect: 'error' });
   };
 }
 
@@ -56,7 +63,7 @@ function createSupabaseAdminClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL),
     },
     auth: {
       storage: undefined,
