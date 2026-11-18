@@ -14,11 +14,11 @@ export function validateStagingConfig(env: Record<string, string | undefined>): 
   for (const name of required) {
     if (!env[name]?.trim()) throw new Error(`STAGING_PREFLIGHT: missing ${name}`);
   }
-  if (env.SUPABASE_URL !== url || env.VITE_SUPABASE_URL !== url ||
-      env.SUPABASE_PROJECT_ID !== expected || env.VITE_SUPABASE_PROJECT_ID !== expected) {
+  if (env['SUPABASE_URL'] !== url || env['VITE_SUPABASE_URL'] !== url ||
+      env['SUPABASE_PROJECT_ID'] !== expected || env['VITE_SUPABASE_PROJECT_ID'] !== expected) {
     throw new Error("STAGING_PREFLIGHT: project identity mismatch");
   }
-  const key = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const key = env['SUPABASE_SERVICE_ROLE_KEY']!;
   if (key.startsWith("sb_publishable_")) throw new Error("STAGING_PREFLIGHT: privileged key required");
   if (!key.startsWith("sb_secret_")) {
     // Legacy Supabase service_role credentials are JWTs; reject anon/user JWTs.
