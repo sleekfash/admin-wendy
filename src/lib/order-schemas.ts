@@ -49,11 +49,8 @@ export const customerFields = {
   customer_name: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(255).optional().or(z.literal("")),
   phone: z.string().trim().min(6).max(40),
-  pickup_date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional()
-    .or(z.literal("")),
+  pickup_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a fulfillment date.")
+    .refine((value) => !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value, "Enter a valid fulfillment date."),
   pickup_window: z.string().trim().max(60).optional(),
   fulfilment: z.enum(["pickup", "delivery"]),
   delivery_area: z.string().trim().max(160).optional(),
@@ -63,6 +60,16 @@ export const customerFields = {
   allergies: z.string().trim().max(500).optional(),
   heard_from: z.string().trim().max(80).optional(),
   items: z.array(itemSchema).min(1).max(30),
+};
+
+const validateFulfilment = (data: { fulfilment: "pickup" | "delivery"; delivery_area?: string; delivery_postal_code?: string }, ctx: z.RefinementCtx) => {
+  if (data.fulfilment !== "delivery") return;
+  if (!data.delivery_area?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["delivery_area"], message: "Enter the delivery street address." });
+  }
+  if (!data.delivery_postal_code?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["delivery_postal_code"], message: "Enter the delivery postal code." });
+  }
 };
 
 export const orderSchema = z.object({
@@ -75,9 +82,9 @@ export const orderSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional()
     .or(z.literal("")),
-});
+}).superRefine(validateFulfilment);
 
-export const cardOrderSchema = z.object(customerFields);
+export const cardOrderSchema = z.object(customerFields).superRefine(validateFulfilment);
 
 export type PlaceOrderInput = z.input<typeof orderSchema>;
 export type CardOrderInput = z.input<typeof cardOrderSchema>;
