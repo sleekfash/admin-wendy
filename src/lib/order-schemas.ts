@@ -62,7 +62,7 @@ export const customerFields = {
   items: z.array(itemSchema).min(1).max(30),
 };
 
-const validateFulfilment = (data: { fulfilment: "pickup" | "delivery"; delivery_area?: string; delivery_postal_code?: string }, ctx: z.RefinementCtx) => {
+const validateFulfilment = (data: { fulfilment: "pickup" | "delivery"; delivery_area?: string | undefined; delivery_postal_code?: string | undefined }, ctx: z.RefinementCtx) => {
   if (data.fulfilment !== "delivery") return;
   if (!data.delivery_area?.trim()) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["delivery_area"], message: "Enter the delivery street address." });
