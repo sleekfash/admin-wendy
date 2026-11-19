@@ -190,7 +190,7 @@ function CheckoutPage() {
         customer_name: form.customer_name,
         phone: form.phone,
         email: form.email || undefined,
-        pickup_date: form.pickup_date || undefined,
+        pickup_date: form.pickup_date,
         pickup_window: form.pickup_window,
         fulfilment: form.fulfilment,
         delivery_area: form.fulfilment === "delivery" ? form.delivery_area : undefined,
