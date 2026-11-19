@@ -421,6 +421,7 @@ function CheckoutPage() {
                   <Label htmlFor="postal">Postal code</Label>
                   <Input
                     id="postal"
+                    required
                     maxLength={12}
                     placeholder="M9C 1A1"
                     value={form.delivery_postal_code}
