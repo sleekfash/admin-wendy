@@ -1,0 +1,34 @@
+name: Staging identity preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wendys-staging-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: wendys-staging
+    env:
+      SUPABASE_URL: https://zwvyzfsfvfffvcfrumfa.supabase.co
+      SUPABASE_PROJECT_ID: zwvyzfsfvfffvcfrumfa
+      VITE_SUPABASE_URL: https://zwvyzfsfvfffvcfrumfa.supabase.co
+      VITE_SUPABASE_PROJECT_ID: zwvyzfsfvfffvcfrumfa
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit-test identity guard
+        run: node --experimental-strip-types --test tests/staging-preflight.test.ts
+      - name: Verify staging credential without writing data
+        run: node --experimental-strip-types scripts/verify-staging-preflight.ts
+      # No checkout writes in this workflow. A separate integration workflow
+      # must depend on a passing preflight for the same commit/environment.

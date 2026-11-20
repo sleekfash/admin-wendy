@@ -39,7 +39,9 @@ export const Route = createFileRoute("/pricing")({
 /** Upgrades that genuinely change the price, shown so the total is never a surprise. */
 function upgrades(product: ShopProduct) {
   if (isCakeDesignProduct(product.id, product.category_id)) return [];
-  return product.options.flatMap((group) =>
+  return product.options
+    .filter((group) => !(product.slug === "tiered-celebration-cake" && group.key === "size-layers"))
+    .flatMap((group) =>
     group.choices
       .filter((choice) => choice.price_delta_cents !== 0)
       .map((choice) => ({
@@ -53,6 +55,13 @@ function PricingPage() {
   const { products, categories } = useSuspenseQuery(catalogQueryOptions).data;
 
   const cake = products.find((p) => p.slug === "tiered-celebration-cake");
+  const cakeSizes = cake?.direct_cake_sizes ?? [];
+  const buttercreamStarting = cakeSizes.length ? Math.min(...cakeSizes.map((s) => s.price_cents)) : null;
+  const fondantChoices = cake?.options.find((g) => g.key === "fondant-covering")?.choices ?? [];
+  const fondantOneTier = fondantChoices.find((c) => c.key === "fondant-1-tier");
+  const fondantStarting = buttercreamStarting != null && fondantOneTier
+    ? buttercreamStarting + fondantOneTier.price_delta_cents
+    : null;
   const listed = products
     .filter((p) => p.available && p.price_cents != null)
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -128,6 +137,24 @@ function PricingPage() {
               </section>
             ))}
 
+            {cakeSizes.length > 0 && (
+              <section className="mb-12">
+                <h2 className="text-3xl">Custom cake size and layer prices</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  These are complete starting prices for the selected cake size and layer count,
+                  before optional decorations and finishes. They are not surcharges.
+                </p>
+                <dl className="mt-6 divide-y divide-border border-y border-border">
+                  {cakeSizes.map((size) => (
+                    <div key={size.key} className="flex justify-between gap-6 py-3">
+                      <dt>{size.key.replaceAll("-", " ").replace("inch", "inch ·")}</dt>
+                      <dd className="font-display text-lg text-gold">{formatMoney(size.price_cents)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+
             {allUpgrades.length > 0 && (
               <>
                 <h2 className="text-3xl">Sizes and finishes that add to the price</h2>
@@ -179,11 +206,12 @@ function PricingPage() {
                   checkout before you pay.
                 </li>
                 <li>
-                  <strong className="text-foreground">
-                    Custom cake minimums are {formatMoney(cake?.buttercream_minimum_cents)}
-                  </strong>{" "}
-                  for buttercream and {formatMoney(cake?.fondant_minimum_cents)} for fondant. Your
-                  configured total must meet the relevant minimum.
+                  <strong className="text-foreground">Custom cake starting prices</strong>{" "}
+                  {buttercreamStarting != null
+                    ? `begin at ${formatMoney(buttercreamStarting)} for buttercream`
+                    : "depend on the available size and layer options"}
+                  {fondantStarting != null ? ` and ${formatMoney(fondantStarting)} with a one-tier fondant finish` : ""}.
+                  These are calculated from available configurations, not additional minimum fees.
                 </li>
                 <li>
                   <strong className="text-foreground">Each tier is a full three-layer cake.</strong>{" "}

@@ -149,6 +149,10 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       if (product.payment_rule !== "deposit") {
         throw new PricingError(`${product.name} has an incomplete payment setup.`);
       }
+      // Fail closed if application code is deployed before the matching pricing migration.
+      if (product.price_cents !== 0 || product.deposit_percent !== 70) {
+        throw new PricingError("Custom cake pricing is being updated. Please try again shortly.");
+      }
       if (product.category_id !== CUSTOM_CAKE_CATEGORY_ID) {
         throw new PricingError(
           `${product.name} is temporarily unavailable because its setup needs attention.`,
@@ -273,7 +277,9 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
       }
     }
 
-    const base = product.price_cents!;
+    // Custom cakes use the selected size/layer price as the full starting price.
+    // A legacy product base price must never be added on top.
+    const base = cakeGroups ? 0 : product.price_cents!;
     if (cakeGroups) {
       const sizeSelections = selectedByGroupId.get(cakeGroups.sizeLayers.id) ?? [];
       if (sizeSelections.length !== 1) {
@@ -343,15 +349,7 @@ export async function priceLines(requests: LineRequest[]): Promise<PricedLine[]>
         );
       }
 
-      const fondant = fondantCovering != null;
-      const minimum = fondant ? product.fondant_minimum_cents : product.buttercream_minimum_cents;
-      if (minimum == null || minimum < 1)
-        throw new PricingError("Cake minimums are not configured.");
-      if (base + optionsTotal < minimum) {
-        throw new PricingError(
-          `${product.name} has a ${fondant ? "fondant" : "buttercream"} minimum of $${(minimum / 100).toFixed(2)}. Add a larger size or more design details.`,
-        );
-      }
+
     }
 
     const unitTotal = base + optionsTotal;

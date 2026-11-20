@@ -89,6 +89,7 @@ function CheckoutPage() {
   const [method, setMethod] = useState<PayMethod>("whatsapp");
   const [busy, setBusy] = useState(false);
   const [policiesAccepted, setPoliciesAccepted] = useState(false);
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const [done, setDone] = useState<Receipt | null>(null);
   const [form, setForm] = useState({
     customer_name: "",
@@ -99,7 +100,6 @@ function CheckoutPage() {
     fulfilment: "pickup" as "pickup" | "delivery",
     delivery_area: "",
     delivery_postal_code: "",
-    occasion: "",
     notes: "",
     allergies: "",
   });
@@ -158,7 +158,6 @@ function CheckoutPage() {
       form.fulfilment === "delivery"
         ? `Delivery to: ${form.delivery_area || "to confirm"}, ${form.delivery_postal_code}`
         : "Pickup in Etobicoke",
-      form.occasion ? `Occasion: ${form.occasion}` : "",
       form.notes ? `Notes: ${form.notes}` : "",
       form.allergies ? `Allergies: ${form.allergies}` : "",
     ]
@@ -176,19 +175,27 @@ function CheckoutPage() {
       return;
     }
 
+    if (!form.pickup_date) {
+      toast.error("Please choose the date you need your order.");
+      return;
+    }
+    if (form.fulfilment === "delivery" && (!form.delivery_area.trim() || !form.delivery_postal_code.trim())) {
+      toast.error("Enter your delivery address and postal code.");
+      return;
+    }
+
     setBusy(true);
     try {
       const core = {
         customer_name: form.customer_name,
         phone: form.phone,
         email: form.email || undefined,
-        pickup_date: form.pickup_date || undefined,
+        pickup_date: form.pickup_date,
         pickup_window: form.pickup_window,
         fulfilment: form.fulfilment,
         delivery_area: form.fulfilment === "delivery" ? form.delivery_area : undefined,
         delivery_postal_code:
           form.fulfilment === "delivery" ? form.delivery_postal_code.trim() : undefined,
-        occasion: form.occasion || undefined,
         notes: form.notes || undefined,
         allergies: form.allergies || undefined,
         items: items.map((i) => ({
@@ -327,8 +334,8 @@ function CheckoutPage() {
     <>
       <PageHeader
         eyebrow="Checkout"
-        title="Your details, then how you'd like to pay."
-        lead="Submit your order first. Bank details and receipt upload are available on the next page only after your order is saved."
+        title="Just a few details to finish."
+        lead="Your cake choices are already saved. Confirm your contact details and collection date, then choose how to pay."
       />
 
       <Section>
@@ -358,7 +365,7 @@ function CheckoutPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email (optional)</Label>
+              <Label htmlFor="email">Email (optional, for order updates)</Label>
               <Input
                 id="email"
                 type="email"
@@ -368,30 +375,19 @@ function CheckoutPage() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Date you need it</Label>
+                <Label htmlFor="date">Date you need it *</Label>
                 <Input
                   id="date"
+                  required
                   type="date"
                   min={minDate()}
                   value={form.pickup_date}
                   onChange={(e) => set("pickup_date", e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="window">Preferred window</Label>
-                <select
-                  id="window"
-                  value={form.pickup_window}
-                  onChange={(e) => set("pickup_window", e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {["Morning", "Afternoon", "Evening", "Flexible"].map((w) => (
-                    <option key={w}>{w}</option>
-                  ))}
-                </select>
-              </div>
+
             </div>
 
             <fieldset className="space-y-2">
@@ -425,6 +421,7 @@ function CheckoutPage() {
                   <Label htmlFor="postal">Postal code</Label>
                   <Input
                     id="postal"
+                    required
                     maxLength={12}
                     placeholder="M9C 1A1"
                     value={form.delivery_postal_code}
@@ -435,6 +432,7 @@ function CheckoutPage() {
                   <Label htmlFor="area">Street address</Label>
                   <Input
                     id="area"
+                    required
                     maxLength={160}
                     value={form.delivery_area}
                     onChange={(e) => set("delivery_area", e.target.value)}
@@ -443,34 +441,55 @@ function CheckoutPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="occasion">Occasion (optional)</Label>
-              <Input
-                id="occasion"
-                maxLength={80}
-                value={form.occasion}
-                onChange={(e) => set("occasion", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Design notes (optional)</Label>
-              <Textarea
-                id="notes"
-                maxLength={1000}
-                value={form.notes}
-                onChange={(e) => set("notes", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="allergies">Allergies (optional)</Label>
-              <Input
-                id="allergies"
-                maxLength={500}
-                value={form.allergies}
-                onChange={(e) => set("allergies", e.target.value)}
-              />
+            <div className="rounded-xl border border-border p-4">
+              <button
+                type="button"
+                aria-expanded={showOptionalDetails}
+                aria-controls="checkout-optional-details"
+                onClick={() => setShowOptionalDetails((open) => !open)}
+                className="w-full text-left text-sm font-semibold"
+              >
+                {showOptionalDetails ? "− Hide optional details" : "+ Add special instructions or allergy information (optional)"}
+              </button>
+              {showOptionalDetails && (
+                <div id="checkout-optional-details" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="window">Preferred time (optional)</Label>
+                    <select
+                      id="window"
+                      value={form.pickup_window}
+                      onChange={(e) => set("pickup_window", e.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      {["Flexible", "Morning", "Afternoon", "Evening"].map((w) => (
+                        <option key={w}>{w}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Special instructions (optional)</Label>
+                    <Textarea
+                      id="notes"
+                      maxLength={1000}
+                      placeholder="Only if there is something else we should know"
+                      value={form.notes}
+                      onChange={(e) => set("notes", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="allergies">Allergy information (optional)</Label>
+                    <Input
+                      id="allergies"
+                      maxLength={500}
+                      value={form.allergies}
+                      onChange={(e) => set("allergies", e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Please tell us about allergies before ordering. We cannot guarantee an allergen-free kitchen.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="rounded-[1.5rem] border border-border bg-card p-5">
@@ -634,7 +653,7 @@ function CheckoutPage() {
               )}
               <button
                 type="submit"
-                disabled={busy || !totals}
+                disabled={busy || !totals || !form.pickup_date || (form.fulfilment === "delivery" && (!form.delivery_area.trim() || !form.delivery_postal_code.trim()))}
                 className="mt-6 w-full rounded-sm bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {busy
