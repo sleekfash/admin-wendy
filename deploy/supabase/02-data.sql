@@ -15,7 +15,7 @@ INSERT INTO public.categories (
   ),
   (
     'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d501', 'cupcakes', 'Cupcakes',
-    'Fresh cupcakes in boxes of 6, 12 or 20.',
+    'Fresh cupcakes in boxes of 6, 12 or 24.',
     'cupcakes', NULL, 2, true
   ),
   (
@@ -64,7 +64,7 @@ INSERT INTO public.products (
   (
     'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d502', 'cupcakes', 'Cupcakes',
     'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d501',
-    '6 for $35, 12 for $60, or 20 for $110.',
+    '6 for $35, 12 for $60, or 24 for $108.',
     'Piped cupcakes baked to order for birthdays, gifts and dessert tables.',
     'fixed', 3500, NULL, NULL, NULL, NULL, '3 days', NULL,
     'cupcakes', NULL, '[]', '["Presentation box", "Buttercream finish"]',
@@ -233,7 +233,8 @@ INSERT INTO public.product_option_choices (
 
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d570', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503', 'box-6', 'Box of 6', 0, true, 1),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d571', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503', 'box-12', 'Box of 12', 2500, true, 2),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d572', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503', 'box-20', 'Box of 20', 7500, true, 3);
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d572', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503', 'box-20', 'Box of 20', 7500, false, 3),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d573', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503', 'box-24', 'Box of 24', 7300, true, 4);
 
 -- Preserve useful zero-cost choices on retained products.
 INSERT INTO public.product_option_groups (
