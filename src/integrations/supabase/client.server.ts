@@ -25,7 +25,8 @@ function createSupabaseFetch(supabaseKey: string, supabaseUrl: string): typeof f
     // the service credential has been authenticated against that exact host.
     if (process.env['SUPABASE_PROJECT_ID'] === STAGING_PROJECT_REF ||
         process.env['SUPABASE_URL'] === `https://${STAGING_PROJECT_REF}.supabase.co` ||
-        process.env['VERCEL_GIT_COMMIT_REF'] === 'feature/custom-cake-size-pricing-2026-11') {
+        process.env['VERCEL_GIT_COMMIT_REF'] === 'feature/custom-cake-size-pricing-2026-11' ||
+        process.env['VERCEL_GIT_COMMIT_REF'] === 'fix/release-stabilization-2026-11') {
       stagingPreflight ??= verifyStagingCredential(process.env);
       await stagingPreflight;
     }
