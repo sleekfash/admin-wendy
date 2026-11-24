@@ -194,15 +194,15 @@ INSERT INTO public.product_option_groups (
 INSERT INTO public.product_option_choices (
   id, group_id, key, label, price_delta_cents, available, sort_order
 ) VALUES
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d520', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-1-layer', '6 inch - 1 layer', 0, true, 1),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d521', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-2-layers', '6 inch - 2 layers', 6000, true, 2),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d522', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-3-layers', '6 inch - 3 layers', 11000, true, 3),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d523', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-1-layer', '8 inch - 1 layer', 3000, true, 4),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d524', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-2-layers', '8 inch - 2 layers', 11000, true, 5),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d525', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-3-layers', '8 inch - 3 layers', 18000, true, 6),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d526', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-1-layer', '10 inch - 1 layer', 8000, true, 7),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d527', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-2-layers', '10 inch - 2 layers', 18000, true, 8),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d528', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-3-layers', '10 inch - 3 layers', 25000, true, 9),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d520', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-1-layer', '6 inch - 1 layer', 0, false, 1),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d521', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-2-layers', '6 inch - 2 layers', 13000, true, 2),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d522', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '6-inch-3-layers', '6 inch - 3 layers', 18000, true, 3),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d523', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-1-layer', '8 inch - 1 layer', 10000, true, 4),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d524', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-2-layers', '8 inch - 2 layers', 18000, true, 5),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d525', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '8-inch-3-layers', '8 inch - 3 layers', 25000, true, 6),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d526', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-1-layer', '10 inch - 1 layer', 15000, true, 7),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d527', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-2-layers', '10 inch - 2 layers', 28000, true, 8),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d528', '30594a40-1fd1-4cca-8f80-280c9d975ec7', '10-inch-3-layers', '10 inch - 3 layers', 35000, true, 9),
 
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d530', 'aab61c6f-909a-416c-b9b3-40647ff36d5f', 'simple-edible-topper', 'Simple edible topper', 2500, true, 1),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d531', 'aab61c6f-909a-416c-b9b3-40647ff36d5f', 'custom-edible-topper', 'Custom edible topper', 5000, true, 2),
@@ -219,10 +219,10 @@ INSERT INTO public.product_option_choices (
 
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d540', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'second-tier-6-inch', 'Add a 2nd tier - 6 inch (3 layers)', 18000, true, 1),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d541', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'second-tier-8-inch', 'Add a 2nd tier - 8 inch (3 layers)', 25000, true, 2),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d542', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'second-tier-10-inch', 'Add a 2nd tier - 10 inch (3 layers)', 32000, true, 3),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d542', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'second-tier-10-inch', 'Add a 2nd tier - 10 inch (3 layers)', 35000, true, 3),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d543', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'third-tier-6-inch', 'Add a 3rd tier - 6 inch (3 layers)', 18000, true, 4),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d544', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'third-tier-8-inch', 'Add a 3rd tier - 8 inch (3 layers)', 25000, true, 5),
-  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d545', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'third-tier-10-inch', 'Add a 3rd tier - 10 inch (3 layers)', 32000, true, 6),
+  ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d545', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d510', 'third-tier-10-inch', 'Add a 3rd tier - 10 inch (3 layers)', 35000, true, 6),
 
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d550', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d511', 'fondant-1-tier', 'Fondant covering - 1 tier', 10000, true, 1),
   ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d551', 'f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d511', 'fondant-2-tiers', 'Fondant covering - 2 tiers', 20000, true, 2),
