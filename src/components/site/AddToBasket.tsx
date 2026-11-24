@@ -27,11 +27,7 @@ export function AddToBasket({
   const customizationId = useId();
   const customCake = isCustomCakeProduct(product.id);
   const directSizes = product.direct_cake_sizes ?? [];
-  const defaultSize = directSizes[0]?.key;
-  const selected =
-    customCake && !selections[sizeLayers.key] && defaultSize
-      ? { ...selections, [sizeLayers.key]: [defaultSize] }
-      : selections;
+  const selected = selections;
   const groups = product.options.filter((group) => !customCake || group.key !== tieringFee.key);
   const choices = groups.flatMap((group) =>
     (selected[group.key] ?? []).map((choiceKey) => ({
@@ -45,7 +41,7 @@ export function AddToBasket({
 
   const pricing = useQuery({
     queryKey: ["product-price", product.slug, quantity, choices],
-    enabled: hasRequiredChoices,
+    enabled: hasRequiredChoices && (!customCake || !!selected[sizeLayers.key]?.[0]),
     queryFn: () =>
       preview({
         data: {
@@ -125,9 +121,11 @@ export function AddToBasket({
     <div className="rounded-[1.5rem] border border-border bg-secondary p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <p className="font-display text-2xl text-gold">
-          {line
-            ? formatMoney(line.unit_total_cents)
-            : `From ${formatMoney(product.starting_price_cents)}`}
+          {customCake && !size
+            ? "Select size and layers to see price"
+            : line
+              ? formatMoney(line.unit_total_cents)
+              : customCake ? "Confirming price…" : `From ${formatMoney(product.starting_price_cents)}`}
         </p>
         {pack && <p className="text-sm text-muted-foreground">{pack}</p>}
         {isDeposit && (
