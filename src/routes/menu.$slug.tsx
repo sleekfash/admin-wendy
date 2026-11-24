@@ -160,8 +160,7 @@ function ProductPage() {
                   <p className="text-sm text-muted-foreground">
                     This photograph shows a custom cake made for a past celebration. Ask Wendy to
                     recreate the pictured design, subject to decoration availability and a confirmed
-                    quote, or use the configurator to personalize it. The displayed starting price
-                    is not a quote for reproducing every pictured detail.
+                    quote, or use the configurator to personalize it. Select size and layers to see pricing. Reproducing every pictured detail may require additional options.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <a
