@@ -77,3 +77,11 @@ Before release, verify the bucket configuration from `deploy/supabase/10-transfe
 ## Floral cake homepage hero
 
 On 8 November 2026, the owner requested replacing the live homepage collage with their floral cake photograph and approved a bold full-width treatment and more direct hero copy. Scope is the homepage hero. Verify the preview and the live page at desktop and mobile widths.
+
+## Release stabilization and isolated staging — 24 November 2026
+
+- Draft PR #9 covers approved pricing and explicit cake selection. Production merge/publication remains gated on verified isolated staging and explicit clearance for production database work.
+- Migrations 10 and 11 were rehearsed in PostgreSQL 17.5 against disposable fixtures based on the repository schema and the `main` catalogue seed, with payment/contact settings excluded. Backup restoration, pricing, order preservation and targeted rollback passed. The original migration 11 failed after the documented rollback disabled a newly created 24-pack. The fix re-enables only the matching disabled row and retains its conflicting-price failure. Apply, rollback and reapply passed locally.
+- Staging project `zwvyzfsfvfffvcfrumfa` is inactive. Supabase refused restoration because of the free-project quota. Its pause API reported that `bakery` is hibernating while project metadata still lists it as active.
+- Automatic Vercel deployment is disabled for `fix/release-stabilization-2026-11` only. Once Supabase is active, configure and verify the branch-scoped staging credentials before removing this temporary setting and redeploying the protected preview.
+- Hosted credential preflight, apply/rollback/reapply on isolated staging, and hosted browser verification are pending. Keep production writes and payment-integrity tests behind the existing approvals.

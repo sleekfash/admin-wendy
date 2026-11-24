@@ -8,7 +8,13 @@ END $$;
 UPDATE public.product_option_choices SET available=false, updated_at=clock_timestamp() WHERE group_id='f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503' AND key='box-20' AND available;
 INSERT INTO public.product_option_choices (id,group_id,key,label,price_delta_cents,available,sort_order)
 VALUES ('f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d573','f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503','box-24','Box of 24',7300,true,4)
-ON CONFLICT (id) DO NOTHING;
+-- Rollback retains a newly introduced pack in a disabled state.
+ON CONFLICT (id) DO UPDATE
+SET available = true, updated_at = clock_timestamp()
+WHERE product_option_choices.group_id = EXCLUDED.group_id
+  AND product_option_choices.key = EXCLUDED.key
+  AND product_option_choices.price_delta_cents = EXCLUDED.price_delta_cents
+  AND NOT product_option_choices.available;
 DO $$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM public.product_option_choices WHERE group_id='f25d4b7e-4f5f-4cab-8a2d-8ea0a9c8d503' AND key='box-24' AND price_delta_cents=7300 AND available)
  THEN RAISE EXCEPTION '24 cupcake pack verification failed'; END IF;
