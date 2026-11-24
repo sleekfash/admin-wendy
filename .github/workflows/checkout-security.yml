@@ -14,6 +14,10 @@ on:
       - "src/routes/pricing.tsx"
       - "src/routes/checkout.tsx"
       - "src/routes/pay-order.tsx"
+      - "src/components/site/AddToBasket.tsx"
+      - "src/routes/menu.$slug.tsx"
+      - "src/integrations/supabase/client.server.ts"
+      - "deploy/supabase/**"
       - "tests/**"
       - "scripts/verify-staging-preflight.ts"
       - "src/lib/staging-preflight.ts"
@@ -74,4 +78,6 @@ jobs:
             src/lib/public-pricing.ts \
             src/lib/pricing.server.ts \
             src/components/admin/AdminPricing.tsx \
-            src/routes/pricing.tsx
+            src/routes/pricing.tsx \
+            src/components/site/AddToBasket.tsx \
+            'src/routes/menu.$slug.tsx'
