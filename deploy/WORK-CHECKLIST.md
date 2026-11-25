@@ -99,3 +99,8 @@ The cloud browser now opens production admin-wendy under organization sleekfash 
 The authorized staging Resume action was rejected. Expanding the dashboard quota dialog identifies the two active Free projects counted against the signed-in Sleek account as admin-wendy (rrgusprzsfdmlzsnjixz, organization sleekfash) and gedhe-couture-production (zjllxxlfsernfyvoolhs, organization sleeky/pwojknyebxtrtklixifm). Earlier assumptions that the ditechICT projects were the specific cause of this Sleek restore failure are superseded by this direct dashboard evidence. Pausing those ditechICT projects alone is not established to clear the Sleek account limit.
 
 Staging zwvyzfsfvfffvcfrumfa remains paused. Resolving the quota now requires an owner decision concerning the two identified production projects or a paid staging organization. No deletion, pause of either production project, subscription upgrade or production database write was performed. Next action is obtain the owner's chosen quota remedy, then resume staging and verify isolated credentials before preview deployment.
+
+
+## Approved project pause — 25 November 2026
+
+The owner explicitly authorized pausing wendys-bakehouse (njflpholnlxtkcbafhod) in ditechICT. The pause API returned success and polling verified INACTIVE. A subsequent restore attempt for isolated staging zwvyzfsfvfffvcfrumfa was rejected because Sleek still exceeds the two-active-free-project limit. This confirms that the completed ditechICT pause did not clear the Sleek restore blocker. The previously observed Sleek quota dialog identifies production admin-wendy and gedhe-couture-production as its two active projects. Next is an owner decision on that quota or an approved paid staging plan.
