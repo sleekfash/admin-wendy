@@ -90,3 +90,12 @@ On 8 November 2026, the owner requested replacing the live homepage collage with
 ## WB-A03 evidence reconciliation — 25 November 2026
 
 See [WB-A03 reconciliation](WB-A03-EVIDENCE-RECONCILIATION.md) and [migration manifest](supabase/WB-A03-MIGRATION-MANIFEST.json). Evidence is pinned to candidate 7e039d69aafa5aff911f9c7c89d5da430ad499da and main 20b9cb476051d4f4a8d6c089b2cd4835d3db5fad. CI run 45480415061 passed. Latest observed branch preview remains f27be45. Staging is inactive and production metadata access is still denied through both advertised connections. Numeric-prefix-only migration execution is blocked by the two distinct 10 scripts. The manifest inventories full IDs, checksums and dependencies, with actual target application status UNKNOWN. Current source includes server role checks and Stripe webhook controls; the report records their limits and remaining financial risks. Next is WB-A04 staging access/capacity resolution, followed by WB-A05 release remediation and hosted acceptance. This documentation commit establishes no additional runtime verification or production clearance.
+
+
+## WB-A04 authenticated quota evidence — 25 November 2026
+
+The cloud browser now opens production admin-wendy under organization sleekfash (doswyjpnxxzngbntjcpu), showing Healthy and GitHub sleekfash/admin-wendy. The connected Supabase APIs still deny production metadata access, so dashboard access and connector access have different verified states.
+
+The authorized staging Resume action was rejected. Expanding the dashboard quota dialog identifies the two active Free projects counted against the signed-in Sleek account as admin-wendy (rrgusprzsfdmlzsnjixz, organization sleekfash) and gedhe-couture-production (zjllxxlfsernfyvoolhs, organization sleeky/pwojknyebxtrtklixifm). Earlier assumptions that the ditechICT projects were the specific cause of this Sleek restore failure are superseded by this direct dashboard evidence. Pausing those ditechICT projects alone is not established to clear the Sleek account limit.
+
+Staging zwvyzfsfvfffvcfrumfa remains paused. Resolving the quota now requires an owner decision concerning the two identified production projects or a paid staging organization. No deletion, pause of either production project, subscription upgrade or production database write was performed. Next action is obtain the owner's chosen quota remedy, then resume staging and verify isolated credentials before preview deployment.
