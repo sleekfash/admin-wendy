@@ -1,0 +1,115 @@
+{
+  "audited_commit": "7e039d69aafa5aff911f9c7c89d5da430ad499da",
+  "policy": "Manual SQL inventory. Select prerequisites from verified target state. Full IDs are authoritative. Do not execute the complete seed on an existing database. Administration and storage scripts require their documented platform prerequisites.",
+  "migrations": [
+    {
+      "id": "01-schema",
+      "path": "deploy/supabase/01-schema.sql",
+      "sha256": "6877054934abc7a4b048060db4555471b99591ff37383f966e91a03f12972f08",
+      "depends_on": [],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "02-data",
+      "path": "deploy/supabase/02-data.sql",
+      "sha256": "6a099623ffea77506ad2823c67a9ab24429de5184d5e2ef0677301deabd8def2",
+      "depends_on": [
+        "01-schema",
+        "05-cake-pricing"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "03-storage",
+      "path": "deploy/supabase/03-storage.sql",
+      "sha256": "e9a67ed6679cb0530155ae056df4094ba76ffb505d81cd4b412b1bd8ddd907f8",
+      "depends_on": [
+        "01-schema"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "04-admin-user",
+      "path": "deploy/supabase/04-admin-user.sql",
+      "sha256": "a74a2dfffeeb83bfc8d83bc589b280ab077af35b53d13a3b4fb2d4afd064ab7f",
+      "depends_on": [
+        "01-schema"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "05-cake-pricing",
+      "path": "deploy/supabase/05-cake-pricing.sql",
+      "sha256": "76ce0c82692fd7e4ed30906365acc38130faf3df64aab27db21d2dbe9a5de101",
+      "depends_on": [
+        "01-schema"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "06-product-image-storage",
+      "path": "deploy/supabase/06-product-image-storage.sql",
+      "sha256": "28dbf695322037c13073d39cda77b7314fa76a1090ea9ddff204a38a6d83f71c",
+      "depends_on": [
+        "03-storage"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "07-testimonials",
+      "path": "deploy/supabase/07-testimonials.sql",
+      "sha256": "a710bb11c0f5e0638a6f46230ff22ddcd974dfc59c3d5fb93ba392d8f9ada4ee",
+      "depends_on": [
+        "01-schema"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "08-admin-pricing-reconciliation",
+      "path": "deploy/supabase/08-admin-pricing-reconciliation.sql",
+      "sha256": "9418756f455b6bcfe81d17d30bcb2b1f460c779866c4cd5f89322eefbedafcc2",
+      "depends_on": [
+        "05-cake-pricing"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "09-custom-cake-size-pricing",
+      "path": "deploy/supabase/09-custom-cake-size-pricing.sql",
+      "sha256": "36638fda737396f9ef3f95a4e74575def61024a21861006611399470050ab4d8",
+      "depends_on": [
+        "02-data",
+        "08-admin-pricing-reconciliation"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "10-approved-cake-price-reconciliation",
+      "path": "deploy/supabase/10-approved-cake-price-reconciliation.sql",
+      "sha256": "aecfa008fd79b382d175e444517060ee9bd581fdc38430bf90fdbf96e0f5426a",
+      "depends_on": [
+        "09-custom-cake-size-pricing"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "10-transfer-receipt-storage",
+      "path": "deploy/supabase/10-transfer-receipt-storage.sql",
+      "sha256": "0124ad5c79d64081913a9cd9f08c1975a757599011a3441b7bb609297c2cfb81",
+      "depends_on": [
+        "03-storage"
+      ],
+      "target_application_status": "UNKNOWN"
+    },
+    {
+      "id": "11-cupcake-pack-reconciliation",
+      "path": "deploy/supabase/11-cupcake-pack-reconciliation.sql",
+      "sha256": "cb0d2667fe418d779110997375c7d0c8629f78ac358dc42412c455348db45492",
+      "depends_on": [
+        "02-data",
+        "10-approved-cake-price-reconciliation"
+      ],
+      "target_application_status": "UNKNOWN"
+    }
+  ]
+}

@@ -95,11 +95,14 @@ export function formatMoney(cents: number | null | undefined): string {
 
 /** Short label used on cards and listings. */
 export function priceLabel(p: {
+  id?: string;
+  category_id?: string | null;
   starting_price_cents?: number | null;
   price_cents: number | null;
   options?: ProductOptionGroup[];
 }): string {
   if (p.starting_price_cents === null) return "Currently unavailable";
+  if (p.id && (isCustomCakeProduct(p.id) || isCakeDesignProduct(p.id, p.category_id))) return "Select size and layers to see price";
   if (p.price_cents == null) return "Ask for a price";
   const hasUpgrades = (p.options ?? []).some((g) => g.choices.some((c) => c.price_delta_cents > 0));
   return `${hasUpgrades ? "From " : ""}${formatMoney(p.starting_price_cents ?? p.price_cents)}`;
